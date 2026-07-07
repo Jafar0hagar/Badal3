@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Currencies collection - Allow public read, validate write structure
+    match /currencies/{currencyId} {
+      allow read: if true;
+      allow write: if request.resource.data.name is string 
+                   && request.resource.data.code is string
+                   && request.resource.data.price is number
+                   && request.resource.data.price >= 0;
+    }
+
+    // Products collection - Allow public read, validate write structure
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.resource.data.name is string
+                   && request.resource.data.price is number
+                   && request.resource.data.price >= 0;
+    }
+
+    // Orders collection - Allow public read, validate write structure
+    match /orders/{orderId} {
+      allow read: if true;
+      allow write: if request.resource.data.productName is string
+                   && request.resource.data.customerName is string
+                   && request.resource.data.customerPhone is string;
+    }
+
+    // Alerts collection - Allow public read, validate write structure
+    match /alerts/{alertId} {
+      allow read: if true;
+      allow write: if request.resource.data.title is string
+                   && request.resource.data.text is string;
+    }
+
+    // Config collection - Allow public read and write
+    match /config/{configId} {
+      allow read, write: if true;
+    }
+  }
+}

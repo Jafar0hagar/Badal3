@@ -1,0 +1,6 @@
+{
+  "name": "BADAL",
+  "description": "تطبيق بدل لمتابعة أسعار العملات والمنتجات لحظة بلحظة",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

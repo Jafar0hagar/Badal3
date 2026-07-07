@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "Currency": {
+      "title": "Currency",
+      "description": "Exchange rate currency details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "symbol": { "type": "string" },
+        "price": { "type": "number" },
+        "lastUpdated": { "type": "string" },
+        "flag": { "type": "string" },
+        "trend": { "type": "string" },
+        "country": { "type": "string" }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Commodity item details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "currencySymbol": { "type": "string" },
+        "category": { "type": "string" },
+        "categoryAr": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "unit": { "type": "string" },
+        "whatsappMessage": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "category"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Purchase order details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productName": { "type": "string" },
+        "price": { "type": "string" },
+        "unit": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "productName", "price", "customerName", "customerPhone"]
+    },
+    "SystemAlert": {
+      "title": "SystemAlert",
+      "description": "Broadcasting alert text",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "time": { "type": "string" },
+        "unread": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title", "text", "unread", "createdAt"]
+    }
+  },
+  "firestore": {
+    "currencies/{currencyId}": {
+      "schema": "Currency",
+      "description": "List of available exchange currencies"
+    },
+    "products/{productId}": {
+      "schema": "Product",
+      "description": "List of foodstuff items and pricing"
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "List of customer orders"
+    },
+    "alerts/{alertId}": {
+      "schema": "SystemAlert",
+      "description": "Broadcast notifications"
+    },
+    "config/{configId}": {
+      "schema": "object",
+      "description": "Configuration items"
+    }
+  }
+}
