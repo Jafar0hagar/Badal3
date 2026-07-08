@@ -128,37 +128,60 @@ export default function PhoneSimulator({
 
   // Real-time Push Notification alert states
   const [activeNotification, setActiveNotification] = useState<SystemAlert | null>(null);
-  const triggeredAlertsRef = useRef<Set<string>>(new Set());
+  
+  // Persistent tracking of alerts that have already played their popup/sound
+  const [playedAlertIds, setPlayedAlertIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('playedAlertIds') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     if (systemAlerts && systemAlerts.length > 0) {
-      // Since systemAlerts is sorted descending by createdAt, the latest is at index 0
-      const latestAlert = systemAlerts[0];
-      if (latestAlert && latestAlert.id) {
-        // Prevent playing or showing popup for the same alert ID more than once per session
-        if (!triggeredAlertsRef.current.has(latestAlert.id)) {
-          triggeredAlertsRef.current.add(latestAlert.id);
+      const now = Date.now();
+      
+      // Find recent, unplayed alerts (created in the last 40 seconds, and not in playedAlertIds)
+      const recentUnplayedAlerts = systemAlerts.filter(alert => {
+        const isRecent = (now - (alert.createdAt || 0)) < 40000;
+        const isUnplayed = !playedAlertIds.includes(alert.id);
+        return isRecent && isUnplayed;
+      });
 
-          // Only trigger push popup if it was created very recently (within last 35 seconds)
-          const isRecent = (Date.now() - (latestAlert.createdAt || 0)) < 35000;
-          // To prevent popping up old alerts when the app first opens
-          const isAppOldEnough = performance.now() > 2000;
+      if (recentUnplayedAlerts.length > 0) {
+        // Sort ascending by createdAt to play the latest one
+        recentUnplayedAlerts.sort((a, b) => a.createdAt - b.createdAt);
+        const alertToPlay = recentUnplayedAlerts[recentUnplayedAlerts.length - 1];
 
-          if (isRecent && isAppOldEnough) {
-            setActiveNotification(latestAlert);
-            // Play the distinctive push notification sound!
-            playNotificationSound(undefined, 'urgent_alert');
-            
-            // Auto dismiss after 7 seconds
-            const timer = setTimeout(() => {
-              setActiveNotification(null);
-            }, 7000);
-            return () => clearTimeout(timer);
-          }
+        // Mark all of these recent unplayed alerts as "played" immediately to prevent double processing
+        const updatedPlayedIds = [...playedAlertIds, ...recentUnplayedAlerts.map(a => a.id)];
+        setPlayedAlertIds(updatedPlayedIds);
+        localStorage.setItem('playedAlertIds', JSON.stringify(updatedPlayedIds));
+
+        // Avoid triggering sounds/popups if the app just loaded within the last 1.5 seconds
+        const isAppOldEnough = performance.now() > 1500;
+        if (isAppOldEnough) {
+          setActiveNotification(alertToPlay);
+          playNotificationSound(undefined, 'urgent_alert');
+
+          const timer = setTimeout(() => {
+            setActiveNotification(null);
+          }, 7000);
+          return () => clearTimeout(timer);
+        }
+      } else {
+        // If there are any alerts in the system list that are not marked as played, but they are not recent,
+        // we silently mark them as "played" so they never trigger on subsequent updates
+        const unplayedOldAlerts = systemAlerts.filter(alert => !playedAlertIds.includes(alert.id));
+        if (unplayedOldAlerts.length > 0) {
+          const updatedPlayedIds = [...playedAlertIds, ...unplayedOldAlerts.map(a => a.id)];
+          setPlayedAlertIds(updatedPlayedIds);
+          localStorage.setItem('playedAlertIds', JSON.stringify(updatedPlayedIds));
         }
       }
     }
-  }, [systemAlerts]);
+  }, [systemAlerts, playedAlertIds]);
 
   useEffect(() => {
     const updateTime = () => {

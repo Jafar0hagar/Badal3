@@ -27,7 +27,10 @@ import {
   ClipboardList,
   Phone,
   Link2,
-  MessageSquare
+  MessageSquare,
+  Upload,
+  Package,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import BadalLogo from './BadalLogo';
@@ -947,6 +950,85 @@ export default function Dashboard({
                         </div>
 
                         <div className="space-y-1">
+                          <label className="text-[9px] text-stone-400 block font-bold">صورة المنتج</label>
+                          <div className="flex items-center gap-3 bg-stone-950 p-2 rounded-lg border border-stone-800">
+                            {/* Image preview */}
+                            <div className="w-10 h-10 bg-stone-900 rounded-lg border border-stone-800 flex items-center justify-center overflow-hidden shrink-0">
+                              {(newProduct.imageUrl || '').startsWith('http') || (newProduct.imageUrl || '').startsWith('data:image') ? (
+                                <img src={newProduct.imageUrl} className="w-full h-full object-contain" />
+                              ) : (
+                                <Package className="w-5 h-5 text-stone-600" />
+                              )}
+                            </div>
+                            
+                            <div className="flex-1 space-y-1">
+                              <input
+                                type="text"
+                                placeholder="رابط الصورة (URL) أو ارفع ملفًا أدناه"
+                                value={newProduct.imageUrl || ''}
+                                onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
+                                className="w-full bg-stone-900 border border-stone-800 rounded-md py-1 px-2 text-[9.5px] text-white focus:outline-hidden"
+                              />
+                              <div className="flex items-center justify-between">
+                                <label className="bg-stone-800 hover:bg-stone-750 text-stone-300 text-[8.5px] font-black px-1.5 py-0.5 rounded-md cursor-pointer transition-all active:scale-95 inline-flex items-center gap-1">
+                                  <Upload className="w-2.5 h-2.5" />
+                                  <span>رفع صورة محلية</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                          setNewProduct({ ...newProduct, imageUrl: reader.result as string });
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                    className="hidden"
+                                  />
+                                </label>
+                                
+                                {newProduct.imageUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setNewProduct({ ...newProduct, imageUrl: '' })}
+                                    className="text-rose-400 hover:text-rose-300 text-[8.5px] font-black"
+                                  >
+                                    مسح الصورة
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Presets */}
+                          <div className="pt-1">
+                            <span className="text-[8px] text-stone-500 block mb-1">اقتراحات سريعة لصور المنتجات:</span>
+                            <div className="flex gap-1 flex-wrap">
+                              {[
+                                { name: 'سكر', url: 'https://images.unsplash.com/photo-1581781894086-e51b1e1d052d?w=150&auto=format&fit=crop&q=60' },
+                                { name: 'أرز', url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=150&auto=format&fit=crop&q=60' },
+                                { name: 'زيت', url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=150&auto=format&fit=crop&q=60' },
+                                { name: 'طحين', url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=150&auto=format&fit=crop&q=60' },
+                                { name: 'حليب', url: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=150&auto=format&fit=crop&q=60' },
+                                { name: 'معكرونة', url: 'https://images.unsplash.com/photo-1621961475762-0db36f157530?w=150&auto=format&fit=crop&q=60' }
+                              ].map((preset) => (
+                                <button
+                                  key={preset.name}
+                                  type="button"
+                                  onClick={() => setNewProduct({ ...newProduct, imageUrl: preset.url })}
+                                  className="bg-stone-950 hover:bg-amber-300/10 border border-stone-850 hover:border-amber-500/30 text-stone-400 hover:text-amber-300 px-1 py-0.5 rounded text-[8px] transition-all"
+                                >
+                                  {preset.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
                           <label className="text-[9px] text-stone-400 block font-bold">وصف تفصيلي للمنتج</label>
                           <textarea
                             placeholder="وصف جودة المنتج وتفاصيله للعميل..."
@@ -1027,6 +1109,85 @@ export default function Dashboard({
                           </div>
 
                           <div className="space-y-1">
+                            <label className="text-[10px] text-stone-400 block font-bold">صورة المنتج</label>
+                            <div className="flex items-center gap-3 bg-stone-950 p-2 rounded-lg border border-stone-800">
+                              {/* Image preview */}
+                              <div className="w-10 h-10 bg-stone-900 rounded-lg border border-stone-800 flex items-center justify-center overflow-hidden shrink-0">
+                                {(editingProduct.imageUrl || '').startsWith('http') || (editingProduct.imageUrl || '').startsWith('data:image') ? (
+                                  <img src={editingProduct.imageUrl} className="w-full h-full object-contain" />
+                                ) : (
+                                  <Package className="w-5 h-5 text-stone-600" />
+                                )}
+                              </div>
+                              
+                              <div className="flex-1 space-y-1">
+                                <input
+                                  type="text"
+                                  placeholder="رابط الصورة (URL) أو ارفع ملفًا أدناه"
+                                  value={editingProduct.imageUrl || ''}
+                                  onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
+                                  className="w-full bg-stone-900 border border-stone-800 rounded-md py-1 px-2 text-[9.5px] text-white focus:outline-hidden"
+                                />
+                                <div className="flex items-center justify-between">
+                                  <label className="bg-stone-800 hover:bg-stone-750 text-stone-300 text-[8.5px] font-black px-1.5 py-0.5 rounded-md cursor-pointer transition-all active:scale-95 inline-flex items-center gap-1">
+                                    <Upload className="w-2.5 h-2.5" />
+                                    <span>رفع صورة محلية</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            setEditingProduct({ ...editingProduct, imageUrl: reader.result as string });
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      }}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                  
+                                  {editingProduct.imageUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingProduct({ ...editingProduct, imageUrl: '' })}
+                                      className="text-rose-400 hover:text-rose-300 text-[8.5px] font-black"
+                                    >
+                                      مسح الصورة
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Presets */}
+                            <div className="pt-1">
+                              <span className="text-[8px] text-stone-500 block mb-1">اقتراحات سريعة لصور المنتجات:</span>
+                              <div className="flex gap-1 flex-wrap">
+                                {[
+                                  { name: 'سكر', url: 'https://images.unsplash.com/photo-1581781894086-e51b1e1d052d?w=150&auto=format&fit=crop&q=60' },
+                                  { name: 'أرز', url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=150&auto=format&fit=crop&q=60' },
+                                  { name: 'زيت', url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=150&auto=format&fit=crop&q=60' },
+                                  { name: 'طحين', url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=150&auto=format&fit=crop&q=60' },
+                                  { name: 'حليب', url: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=150&auto=format&fit=crop&q=60' },
+                                  { name: 'معكرونة', url: 'https://images.unsplash.com/photo-1621961475762-0db36f157530?w=150&auto=format&fit=crop&q=60' }
+                                ].map((preset) => (
+                                  <button
+                                    key={preset.name}
+                                    type="button"
+                                    onClick={() => setEditingProduct({ ...editingProduct, imageUrl: preset.url })}
+                                    className="bg-stone-950 hover:bg-amber-300/10 border border-stone-850 hover:border-amber-500/30 text-stone-400 hover:text-amber-300 px-1 py-0.5 rounded text-[8px] transition-all"
+                                  >
+                                    {preset.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
                             <label className="text-[10px] text-stone-400 block font-bold">وصف السلعة للعميل</label>
                             <textarea
                               value={editingProduct.description || ''}
@@ -1066,12 +1227,22 @@ export default function Dashboard({
                         className="bg-stone-900 border border-stone-850 p-3.5 rounded-xl flex flex-col justify-between hover:border-amber-500/10 transition-colors gap-3"
                       >
                         <div className="flex justify-between items-start gap-3">
-                          <div>
-                            <span className="bg-amber-500/10 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-md">
-                              {product.categoryAr || 'غذائيات'}
-                            </span>
-                            <h4 className="font-extrabold text-xs text-white mt-1 leading-snug">{product.name}</h4>
-                            <p className="text-[9px] text-stone-500 font-tajawal mt-0.5">الوحدة: {product.unit}</p>
+                          <div className="flex gap-2.5 items-start">
+                            {/* Small product thumbnail in Dashboard */}
+                            <div className="w-11 h-11 bg-stone-950 rounded-lg border border-stone-800 flex items-center justify-center overflow-hidden shrink-0 mt-0.5">
+                              {product.imageUrl && (product.imageUrl.startsWith('http') || product.imageUrl.startsWith('data:image')) ? (
+                                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                              ) : (
+                                <Package className="w-5 h-5 text-stone-600" />
+                              )}
+                            </div>
+                            <div>
+                              <span className="bg-amber-500/10 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-md">
+                                {product.categoryAr || 'غذائيات'}
+                              </span>
+                              <h4 className="font-extrabold text-xs text-white mt-1 leading-snug">{product.name}</h4>
+                              <p className="text-[9px] text-stone-500 font-tajawal mt-0.5">الوحدة: {product.unit}</p>
+                            </div>
                           </div>
 
                           <div className="text-left shrink-0">

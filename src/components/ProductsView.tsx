@@ -220,7 +220,7 @@ export default function ProductsView({ onOpenWhatsApp, products: productsProp, o
 
               {/* Illustration container */}
               <div className="w-24 h-24 mb-2 mt-4 group-hover:scale-105 transition-transform duration-200 flex items-center justify-center overflow-hidden">
-                {product.imageUrl && product.imageUrl.startsWith('http') ? (
+                {product.imageUrl && (product.imageUrl.startsWith('http') || product.imageUrl.startsWith('data:image')) ? (
                   <img 
                     src={product.imageUrl} 
                     alt={product.name} 

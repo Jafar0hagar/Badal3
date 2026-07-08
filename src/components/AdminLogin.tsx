@@ -71,22 +71,27 @@ export default function AdminLogin({ onLoginSuccess, onGoBack }: AdminLoginProps
       const passwordHash = await hashString(password);
 
       // Pre-calculated SHA-256 hashes for high security (prevents raw text credentials storage)
-      const TARGET_EMAIL_HASH = 'ba90a19adf46a653166d0b9970aba946d15b98d99e67f1366d26bd175df84b69';
-      const TARGET_PASS_HASH = '636608867bd86125d2cb851e39f2b9f75d263de876f4047d9ecc6a9bd7cdd27f';
+      // admin@badal.com: ba90a19adf46a653166d0b9970aba946d15b98d99e67f1366d26bd175df84b69
+      // zamzamhajer03@gmail.com: c4a45ce37b715694a1d48c08ef82046bc8d89e02319ef5bc289b439c36142750
+      // admin: c7ad44cbad762a5da0a452f9e854fdc1e0e6932f4a56959934dd0240d02d0e2c
+      const ALLOWED_EMAIL_HASHES = [
+        'ba90a19adf46a653166d0b9970aba946d15b98d99e67f1366d26bd175df84b69',
+        'c4a45ce37b715694a1d48c08ef82046bc8d89e02319ef5bc289b439c36142750',
+        'c7ad44cbad762a5da0a452f9e854fdc1e0e6932f4a56959934dd0240d02d0e2c'
+      ];
+
+      // badal2026: 636608867bd86125d2cb851e39f2b9f75d263de876f4047d9ecc6a9bd7cdd27f
+      // admin: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      const ALLOWED_PASS_HASHES = [
+        '636608867bd86125d2cb851e39f2b9f75d263de876f4047d9ecc6a9bd7cdd27f',
+        '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'
+      ];
 
       // Anti-bruteforce delay
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const isAuthorizedEmail = 
-        email.toLowerCase().trim() === 'admin@badal.com' || 
-        email.toLowerCase().trim() === 'zamzamhajer03@gmail.com' ||
-        email.toLowerCase().trim() === 'admin' ||
-        emailHash === TARGET_EMAIL_HASH;
-
-      const isAuthorizedPassword = 
-        password === 'badal2026' || 
-        password === 'admin' ||
-        passwordHash === TARGET_PASS_HASH;
+      const isAuthorizedEmail = ALLOWED_EMAIL_HASHES.includes(emailHash);
+      const isAuthorizedPassword = ALLOWED_PASS_HASHES.includes(passwordHash);
 
       if (!isAuthorizedEmail) {
         setError('البريد الإلكتروني هذا غير مسجل كمسؤول نظام.');
@@ -289,14 +294,7 @@ export default function AdminLogin({ onLoginSuccess, onGoBack }: AdminLoginProps
                     )}
                   </button>
 
-                  {/* Demo/Admin credentials notice */}
-                  <div className="bg-stone-900/60 border border-stone-850/80 rounded-xl p-3 text-right">
-                    <p className="text-[10px] font-bold text-amber-400 mb-1 font-tajawal">💡 معلومات الدخول السريعة للمشرفين:</p>
-                    <p className="text-[9.5px] text-stone-400 font-tajawal leading-relaxed">
-                      البريد الإلكتروني: <span className="text-stone-200 font-mono">admin@badal.com</span><br/>
-                      كلمة المرور: <span className="text-stone-200 font-mono">badal2026</span>
-                    </p>
-                  </div>
+
 
                 </form>
               )}

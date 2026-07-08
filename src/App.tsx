@@ -120,18 +120,6 @@ export default function App() {
       unsubWhatsApp = subscribeWhatsAppConfig(setWhatsAppConfig);
       unsubGeneral = subscribeGeneralConfig(setCurrentFrancRate);
       unsubAlerts = subscribeSystemAlerts((fetchedAlerts) => {
-        // Auto-delete alerts older than 3 hours (3 * 60 * 60 * 1000 ms)
-        const threeHoursMs = 3 * 60 * 60 * 1000;
-        const now = Date.now();
-        fetchedAlerts.forEach((alert) => {
-          const alertTime = alert.createdAt || 0;
-          if (alertTime > 0 && (now - alertTime) > threeHoursMs) {
-            deleteSystemAlertInDb(alert.id).catch(err => {
-              console.error("Failed to auto-delete old alert:", err);
-            });
-          }
-        });
-
         setSystemAlerts(fetchedAlerts);
       });
     }

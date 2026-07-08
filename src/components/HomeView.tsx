@@ -49,17 +49,10 @@ export default function HomeView({
   const flourName = flourProduct ? flourProduct.name : 'دقيق الخيرات فاخر';
   const flourCurrency = flourProduct?.currencySymbol || 'فرنك';
 
-  // Use Firestore systemAlerts if available, fallback to mock alerts
-  const defaultAlerts = [
-    { id: '1', title: 'تحديث سعر الصرف', text: 'تم تحديث سعر الفرنك التشادي الآن في السوق الموازي ليكون 5900 ج.س.', time: 'منذ دقيقة', unread: true, createdAt: Date.now() - 60000 },
-    { id: '2', title: 'توفر كمية جديدة', text: 'تم توفير كميات إضافية من منتج السكر المستورد بجودة ممتازة.', time: 'منذ ساعة', unread: true, createdAt: Date.now() - 3600000 },
-    { id: '3', title: 'تحديث الأسعار المالي', text: 'تراجع طفيف لليورو واستقرار الدولار الأمريكي اليوم في الافتتاح الصباحي.', time: 'منذ ٥ ساعات', unread: false, createdAt: Date.now() - 18000000 },
-  ];
-
   const [timeFilter, setTimeFilter] = useState<'all' | 'hour'>('all');
   const [isSyncingAlerts, setIsSyncingAlerts] = useState(false);
 
-  const notifications = systemAlerts.length > 0 ? systemAlerts : defaultAlerts;
+  const notifications = systemAlerts;
   const unreadCount = notifications.filter(n => !readAlertIds.includes(n.id)).length;
 
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
@@ -121,11 +114,6 @@ export default function HomeView({
         <div className="flex items-center gap-3">
           <div className="relative w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200 shadow-xs">
             <BadalLogo size={28} withTag={false} />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#850F1D] text-white font-mono text-[8px] font-bold rounded-full flex items-center justify-center shadow-xs border border-white animate-pulse">
-                {unreadCount}
-              </span>
-            )}
           </div>
           <div>
             <h2 className="text-base font-black text-[#850F1D] tracking-wide leading-tight">BADAL</h2>
