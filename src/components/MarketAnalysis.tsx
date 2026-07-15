@@ -4,9 +4,10 @@ import { X, TrendingUp, RefreshCw, Calendar, ArrowUpRight, DollarSign, BarChart2
 interface MarketAnalysisProps {
   onClose: () => void;
   currentFrancRate: number;
+  isDarkMode?: boolean;
 }
 
-export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnalysisProps) {
+export default function MarketAnalysis({ onClose, currentFrancRate, isDarkMode = false }: MarketAnalysisProps) {
   const baseRate = currentFrancRate || 5900;
 
   // Generate highly realistic, dynamic historical rates derived from the live rate
@@ -59,22 +60,28 @@ export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnal
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs font-sans" dir="rtl">
-      <div className="bg-[#FAF7F0] w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-amber-800/10 animate-in fade-in zoom-in-95 duration-200">
+      <div className={`w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col border transition-colors duration-200 ${
+        isDarkMode ? 'bg-[#12100C] border-[#FAF1D6]/10 text-[#FAF7F0]' : 'bg-[#FAF7F0] border-amber-800/10 text-stone-800'
+      } animate-in fade-in zoom-in-95 duration-200`}>
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#850F1D] to-[#5C0A13] text-white p-4 flex items-center justify-between">
+        <div className={`p-4 flex items-center justify-between transition-colors duration-200 ${
+          isDarkMode ? 'bg-gradient-to-r from-[#2B1B15] to-[#1E110E] text-[#FAF7F0]' : 'bg-gradient-to-r from-[#850F1D] to-[#5C0A13] text-white'
+        }`}>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-amber-50/10 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-amber-500/10' : 'bg-amber-50/10'}`}>
               <TrendingUp className="w-5 h-5 text-amber-300" />
             </div>
             <div>
               <h3 className="font-bold text-sm">تحليل حركة السوق</h3>
-              <p className="text-[10px] text-amber-100 opacity-80">الفرنك التشادي مقابل الجنيه السوداني (ج.س)</p>
+              <p className={`text-[10px] opacity-80 ${isDarkMode ? 'text-amber-200' : 'text-amber-100'}`}>الفرنك التشادي مقابل الجنيه السوداني (ج.س)</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/10 hover:bg-black/20 text-white flex items-center justify-center transition-colors"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+              isDarkMode ? 'bg-stone-800/50 hover:bg-stone-800 text-stone-400' : 'bg-black/10 hover:bg-black/20 text-white'
+            }`}
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -85,51 +92,61 @@ export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnal
         <div className="p-4 space-y-4">
           
           {/* Main Stat Card */}
-          <div className="bg-white rounded-xl p-3 border border-amber-200/40 shadow-xs flex items-center justify-between">
+          <div className={`rounded-xl p-3 border shadow-xs flex items-center justify-between transition-colors duration-200 ${
+            isDarkMode ? 'bg-stone-900/60 border-stone-800' : 'bg-white border-amber-200/40'
+          }`}>
             <div className="space-y-0.5">
-              <span className="text-[10px] text-stone-500 font-medium">سعر الصرف الحالي</span>
+              <span className={`text-[10px] font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>سعر الصرف الحالي</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-[#850F1D]">{baseRate}</span>
-                <span className="text-xs font-bold text-stone-700">ج.س / ١ فرنك تشادي</span>
+                <span className={`text-2xl font-black ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>{baseRate}</span>
+                <span className={`text-xs font-bold ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>ج.س / ١ فرنك تشادي</span>
               </div>
             </div>
             
-            <div className="bg-emerald-50 text-emerald-800 rounded-lg px-2.5 py-1 flex items-center gap-1">
+            <div className={`rounded-lg px-2.5 py-1 flex items-center gap-1 ${
+              isDarkMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-800'
+            }`}>
               <ArrowUpRight className="w-4 h-4" />
               <span className="text-xs font-bold">+2.4% (أسبوعياً)</span>
             </div>
           </div>
 
           {/* Interactive Chart Container */}
-          <div className="bg-white rounded-xl p-4 border border-amber-200/40 shadow-xs space-y-3">
+          <div className={`rounded-xl p-4 border shadow-xs space-y-3 transition-colors duration-200 ${
+            isDarkMode ? 'bg-[#1C1811] border-[#FAF1D6]/10' : 'bg-white border-amber-200/40'
+          }`}>
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-stone-700 flex items-center gap-1">
-                <BarChart2 className="w-4 h-4 text-[#850F1D]" />
+              <span className={`font-bold flex items-center gap-1 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>
+                <BarChart2 className={`w-4 h-4 ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`} />
                 مخطط الـ 7 أيام الماضية
               </span>
-              <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full">تحديث فوري</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                isDarkMode ? 'text-amber-400 bg-amber-500/10' : 'text-amber-600 bg-amber-50'
+              }`}>تحديث فوري</span>
             </div>
 
             {/* SVG Custom Line Chart */}
-            <div className="relative h-44 bg-gradient-to-b from-amber-50/10 to-transparent rounded-lg p-2 overflow-hidden border border-stone-100">
+            <div className={`relative h-44 rounded-lg p-2 overflow-hidden border ${
+              isDarkMode ? 'bg-stone-950/40 border-stone-900/60' : 'bg-gradient-to-b from-amber-50/10 to-transparent border-stone-100'
+            }`}>
               <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="chartAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#C09F65" stopOpacity="0.4" />
+                    <stop offset="0%" stopColor="#C09F65" stopOpacity={isDarkMode ? '0.2' : '0.4'} />
                     <stop offset="100%" stopColor="#C09F65" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
 
                 {/* Horizontal Guide Lines */}
-                <line x1="5" y1="20" x2="95" y2="20" stroke="#F1ECE1" strokeWidth="0.5" strokeDasharray="2,2" />
-                <line x1="5" y1="50" x2="95" y2="50" stroke="#F1ECE1" strokeWidth="0.5" strokeDasharray="2,2" />
-                <line x1="5" y1="80" x2="95" y2="80" stroke="#F1ECE1" strokeWidth="0.5" strokeDasharray="2,2" />
+                <line x1="5" y1="20" x2="95" y2="20" stroke={isDarkMode ? '#332A18' : '#F1ECE1'} strokeWidth="0.5" strokeDasharray="2,2" />
+                <line x1="5" y1="50" x2="95" y2="50" stroke={isDarkMode ? '#332A18' : '#F1ECE1'} strokeWidth="0.5" strokeDasharray="2,2" />
+                <line x1="5" y1="80" x2="95" y2="80" stroke={isDarkMode ? '#332A18' : '#F1ECE1'} strokeWidth="0.5" strokeDasharray="2,2" />
 
                 {/* Shaded Area Under Line */}
                 <path d={areaPath} fill="url(#chartAreaGrad)" />
 
                 {/* Main Trend Line */}
-                <path d={linePath} fill="none" stroke="#850F1D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={linePath} fill="none" stroke={isDarkMode ? '#F59E0B' : '#850F1D'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
                 {/* Circles for nodes */}
                 {historyData.map((d, idx) => {
@@ -142,8 +159,8 @@ export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnal
                         cx={x} 
                         cy={y} 
                         r={isSelected ? 4 : 2.5} 
-                        fill={isSelected ? '#850F1D' : '#C09F65'} 
-                        stroke="#FFF" 
+                        fill={isSelected ? (isDarkMode ? '#F59E0B' : '#850F1D') : '#C09F65'} 
+                        stroke={isDarkMode ? '#12100C' : '#FFF'} 
                         strokeWidth={1.5}
                         className="cursor-pointer transition-all duration-150 hover:scale-125"
                         onClick={() => setSelectedPoint({ day: d.day, rate: d.rate })}
@@ -158,7 +175,7 @@ export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnal
                 {historyData.map((d, idx) => (
                   <span 
                     key={idx} 
-                    className={`cursor-pointer transition-colors ${selectedPoint?.day === d.day ? 'text-[#850F1D] font-black scale-105' : ''}`}
+                    className={`cursor-pointer transition-colors ${selectedPoint?.day === d.day ? (isDarkMode ? 'text-amber-400 font-black scale-105' : 'text-[#850F1D] font-black scale-105') : ''}`}
                     onClick={() => setSelectedPoint({ day: d.day, rate: d.rate })}
                   >
                     {d.day}
@@ -169,16 +186,18 @@ export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnal
 
             {/* Tooltip detail panel */}
             {selectedPoint && (
-              <div className="bg-[#FAF7F0] rounded-lg p-2 flex items-center justify-between text-xs border border-amber-200/30">
-                <span className="text-stone-500 font-medium">سعر يوم <strong className="text-stone-700">{selectedPoint.day}</strong>:</span>
+              <div className={`rounded-lg p-2 flex items-center justify-between text-xs border ${
+                isDarkMode ? 'bg-stone-900/80 border-stone-800' : 'bg-[#FAF7F0] border-amber-200/30'
+              }`}>
+                <span className={`${isDarkMode ? 'text-stone-400' : 'text-stone-500'} font-medium`}>سعر يوم <strong className={isDarkMode ? 'text-stone-200' : 'text-stone-700'}>{selectedPoint.day}</strong>:</span>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-stone-800 text-sm">{selectedPoint.rate} ج.س</span>
+                  <span className={`font-bold text-sm ${isDarkMode ? 'text-amber-300' : 'text-stone-800'}`}>{selectedPoint.rate} ج.س</span>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm ${
                     historyData.find(h => h.day === selectedPoint.day)?.diff.startsWith('+')
-                      ? 'bg-emerald-50 text-emerald-800'
+                      ? (isDarkMode ? 'bg-[#10301D] text-emerald-400' : 'bg-emerald-50 text-emerald-800')
                       : historyData.find(h => h.day === selectedPoint.day)?.diff === '0'
-                      ? 'bg-stone-100 text-stone-600'
-                      : 'bg-rose-50 text-rose-800'
+                      ? (isDarkMode ? 'bg-stone-800 text-stone-400' : 'bg-stone-100 text-stone-600')
+                      : (isDarkMode ? 'bg-rose-950/50 text-rose-400' : 'bg-rose-50 text-rose-800')
                   }`}>
                     {historyData.find(h => h.day === selectedPoint.day)?.diff}
                   </span>
@@ -188,10 +207,12 @@ export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnal
           </div>
 
           {/* Quick summary notes */}
-          <div className="bg-amber-50/50 rounded-xl p-3.5 border border-amber-200/30 text-xs text-stone-700 space-y-2 leading-relaxed">
-            <h4 className="font-black text-amber-900 text-xs">📈 ملخص حركة الصرف الأسبوعية</h4>
+          <div className={`rounded-xl p-3.5 border text-xs space-y-2 leading-relaxed transition-colors duration-200 ${
+            isDarkMode ? 'bg-[#332A18]/45 border-[#D5A549]/15 text-stone-300' : 'bg-amber-50/50 border-amber-200/30 text-stone-700'
+          }`}>
+            <h4 className={`font-black text-xs ${isDarkMode ? 'text-amber-400' : 'text-amber-900'}`}>📈 ملخص حركة الصرف الأسبوعية</h4>
             <p>
-              يستمر <strong className="text-[#850F1D]">الفرنك التشادي</strong> في الارتفاع التدريجي الملحوظ مقابل الجنيه السوداني متأثراً بحركة الاستيراد والطلب على المواد الغذائية الأساسية في السوق الموازي. 
+              يستمر <strong className={`font-bold ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>الفرنك التشادي</strong> في الارتفاع التدريجي الملحوظ مقابل الجنيه السوداني متأثراً بحركة الاستيراد والطلب على المواد الغذائية الأساسية في السوق الموازي. 
             </p>
             <p className="text-[10px] text-stone-500 italic">
               * البيانات المعروضة استرشادية ويتم تحديثها تلقائياً بالاعتماد على أسعار الصرف الحقيقية المتداولة في السوق.
@@ -201,14 +222,16 @@ export default function MarketAnalysis({ onClose, currentFrancRate }: MarketAnal
         </div>
 
         {/* Footer */}
-        <div className="bg-stone-50 p-3.5 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
+        <div className={`p-3.5 border-t flex items-center justify-between text-xs text-stone-400 transition-colors duration-200 ${
+          isDarkMode ? 'bg-[#181510] border-stone-900' : 'bg-stone-50 border-stone-200'
+        }`}>
           <span className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-[#C09F65]" />
+            <Calendar className={`w-3.5 h-3.5 ${isDarkMode ? 'text-amber-400' : 'text-[#C09F65]'}`} />
             آخر تحديث اليوم، ٠٢:٣٦ م
           </span>
           <button 
             onClick={onClose}
-            className="text-[#850F1D] font-bold hover:underline transition-all"
+            className={`font-bold hover:underline transition-all ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}
           >
             إغلاق
           </button>

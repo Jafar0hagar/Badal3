@@ -1,31 +1,35 @@
 import { initializeApp } from 'firebase/app';
 import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  getDocs,
-  query,
-  orderBy,
-  updateDoc,
-  writeBatch
-} from 'firebase/firestore';
+  getDatabase, 
+  ref, 
+  onValue, 
+  set, 
+  remove, 
+  get, 
+  child 
+} from 'firebase/database';
 import { Currency, Product, WhatsAppConfig, Order, SystemAlert } from '../types';
 
-// Hardcoded Firebase configuration from firebase-applet-config.json
+// Load environment variables dynamically with strict fallback
+const metaEnv = (import.meta as any).env || {};
+const apiKeyRaw = metaEnv.VITE_FIREBASE_API_KEY || "AIzaSyBONzsAn9GbycG_xJRk4OkHor2W8yhMTSE";
+const apiKey = apiKeyRaw.trim(); // Prevent trailing whitespace bugs from secret loaders
+const projectId = (metaEnv.VITE_FIREBASE_PROJECT_ID || "badal-854a0").trim();
+const databaseURL = (metaEnv.VITE_FIREBASE_DATABASE_URL || "https://badal-854a0-default-rtdb.firebaseio.com").trim();
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBONzsAn9GbycG_xJRk4OkHor2W8yhMTSE",
-  authDomain: "gen-lang-client-0584631997.firebaseapp.com",
-  projectId: "gen-lang-client-0584631997",
-  storageBucket: "gen-lang-client-0584631997.firebasestorage.app",
-  messagingSenderId: "1098123820848",
-  appId: "1:1098123820848:web:0ec371ffeca8c3db2cd2f5"
+  apiKey,
+  authDomain: `${projectId}.firebaseapp.com`,
+  databaseURL,
+  projectId,
+  storageBucket: `${projectId}.firebasestorage.app`,
 };
 
+// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, "ai-studio-2c8954e1-0131-4d50-aa68-8d6bf61d2bc8");
+
+// Initialize and Export Realtime Database Instance
+export const db = getDatabase(app);
 
 // Initial data for seeding if database is empty
 const INITIAL_CURRENCIES: Currency[] = [
@@ -45,7 +49,7 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 'rice', name: 'أرز بسمتي درجة أولى', price: 5500, currencySymbol: 'فرنك', category: 'rice', categoryAr: 'أرز', imageUrl: '', isAvailable: true, unit: 'جوال ٥ كجم', whatsappMessage: 'طلب شراء أرز بسمتي درجة أولى', description: 'أرز بسمتي هندي طويل الحبة ذو نكهة ورائحة عطرية زكية.' },
   { id: 'oil', name: 'زيت صباح نقي مكرر', price: 3000, currencySymbol: 'فرنك', category: 'oils', categoryAr: 'زيوت', imageUrl: '', isAvailable: true, unit: 'زجاجة ١.٥ لتر', whatsappMessage: 'طلب شراء زيت صباح نقي مكرر', description: 'زيت نباتي نقي مكرر وخفيف ومناسب لجميع أنواع الطبخ والقلي.' },
   { id: 'tea', name: 'شاي الجزيرة الأخضر الفاخر', price: 1500, currencySymbol: 'فرنك', category: 'foodstuffs', categoryAr: 'غذائيات', imageUrl: '', isAvailable: true, unit: '٢٥٠ غرام', whatsappMessage: 'طلب شراء شاي الجزيرة الأخضر الفاخر', description: 'أوراق الشاي الأخضر الطبيعي الفاخرة غنية بمضادات الأكسدة وبطعم مميز.' },
-  { id: 'pasta', name: 'مكرونة الوادي سريعة التحضير', price: 1000, currencySymbol: 'فرنك', category: 'foodstuffs', categoryAr: 'غذائيات', imageUrl: '', isAvailable: true, unit: '٥٠0 غرام', whatsappMessage: 'طلب شراء مكرونة الوادي سريعة التحضير', description: 'مكرونة مصنوعة من سميد القمح القاسي عالي الجودة وسهلة الإعداد.' },
+  { id: 'pasta', name: 'مكرونة الوادي سريعة التحضير', price: 1000, currencySymbol: 'فرنك', category: 'foodstuffs', categoryAr: 'غذائيات', imageUrl: '', isAvailable: true, unit: '٥٠٠ غرام', whatsappMessage: 'طلب شراء مكرونة الوادي سريعة التحضير', description: 'مكرونة مصنوعة من سميد القمح القاسي عالي الجودة وسهلة الإعداد.' },
 ];
 
 const INITIAL_ORDERS: Order[] = [
@@ -72,99 +76,109 @@ const INITIAL_WHATSAPP_CONFIG: WhatsAppConfig = {
 };
 
 /**
- * Seed Firestore with default records if they do not exist
+ * Seed Realtime Database with default records if they do not exist
  */
 export async function seedDatabaseIfEmpty() {
   try {
-    const currencySnap = await getDocs(collection(db, 'currencies'));
-    if (currencySnap.empty) {
-      console.log('Seeding currencies...');
-      const batch = writeBatch(db);
-      INITIAL_CURRENCIES.forEach(c => {
-        const docRef = doc(db, 'currencies', c.id);
-        batch.set(docRef, c);
-      });
-      await batch.commit();
+    const dbRef = ref(db);
+    
+    // Check and seed currencies
+    const currencySnap = await get(child(dbRef, 'currencies'));
+    if (!currencySnap.exists()) {
+      console.log('RTDB Seeding currencies...');
+      for (const c of INITIAL_CURRENCIES) {
+        await set(ref(db, `currencies/${c.id}`), c);
+      }
     }
 
-    const productSnap = await getDocs(collection(db, 'products'));
-    if (productSnap.empty) {
-      console.log('Seeding products...');
-      const batch = writeBatch(db);
-      INITIAL_PRODUCTS.forEach(p => {
-        const docRef = doc(db, 'products', p.id);
-        batch.set(docRef, p);
-      });
-      await batch.commit();
+    // Check and seed products
+    const productSnap = await get(child(dbRef, 'products'));
+    if (!productSnap.exists()) {
+      console.log('RTDB Seeding products...');
+      for (const p of INITIAL_PRODUCTS) {
+        await set(ref(db, `products/${p.id}`), p);
+      }
     }
 
-    const orderSnap = await getDocs(collection(db, 'orders'));
-    if (orderSnap.empty) {
-      console.log('Seeding orders...');
-      const batch = writeBatch(db);
-      INITIAL_ORDERS.forEach(o => {
-        const docRef = doc(db, 'orders', o.id);
-        batch.set(docRef, { ...o, createdAt: Date.now() });
-      });
-      await batch.commit();
+    // Check and seed orders
+    const orderSnap = await get(child(dbRef, 'orders'));
+    if (!orderSnap.exists()) {
+      console.log('RTDB Seeding orders...');
+      for (const o of INITIAL_ORDERS) {
+        await set(ref(db, `orders/${o.id}`), { ...o, createdAt: Date.now() });
+      }
     }
 
-    const alertSnap = await getDocs(collection(db, 'alerts'));
-    if (alertSnap.empty) {
-      console.log('Seeding system alerts...');
-      const batch = writeBatch(db);
-      INITIAL_ALERTS.forEach(a => {
-        const docRef = doc(db, 'alerts', a.id);
-        batch.set(docRef, a);
-      });
-      await batch.commit();
+    // Check and seed system alerts
+    const alertSnap = await get(child(dbRef, 'alerts'));
+    if (!alertSnap.exists()) {
+      console.log('RTDB Seeding system alerts...');
+      for (const a of INITIAL_ALERTS) {
+        await set(ref(db, `alerts/${a.id}`), a);
+      }
     }
 
-    const configSnap = await getDocs(collection(db, 'config'));
-    if (configSnap.empty) {
-      console.log('Seeding system config...');
-      await setDoc(doc(db, 'config', 'whatsapp'), INITIAL_WHATSAPP_CONFIG);
-      await setDoc(doc(db, 'config', 'general'), { currentFrancRate: 5900 });
+    // Check and seed config
+    const whatsappSnap = await get(child(dbRef, 'config/whatsapp'));
+    if (!whatsappSnap.exists()) {
+      console.log('RTDB Seeding whatsapp config...');
+      await set(ref(db, 'config/whatsapp'), INITIAL_WHATSAPP_CONFIG);
     }
+
+    const generalSnap = await get(child(dbRef, 'config/general'));
+    if (!generalSnap.exists()) {
+      console.log('RTDB Seeding general config...');
+      await set(ref(db, 'config/general'), { currentFrancRate: 5900 });
+    }
+    
+    console.log('🎉 Realtime Database initial seeding completed successfully.');
   } catch (error) {
-    console.error('Error seeding Firestore database:', error);
+    console.error('Error seeding Realtime Database:', error);
   }
 }
 
-// Subscriptions (Real-time sync)
+// Subscriptions (Real-time synchronization using RTDB onValue)
+
 export function subscribeCurrencies(onUpdate: (currencies: Currency[]) => void) {
-  return onSnapshot(collection(db, 'currencies'), (snapshot) => {
+  const currenciesRef = ref(db, 'currencies');
+  return onValue(currenciesRef, (snapshot) => {
     const list: Currency[] = [];
-    snapshot.forEach(doc => {
-      list.push(doc.data() as Currency);
-    });
-    // Optional sorting or keeping seeded order
+    if (snapshot.exists()) {
+      snapshot.forEach(childSnap => {
+        list.push(childSnap.val() as Currency);
+      });
+    }
     onUpdate(list);
   }, (err) => {
-    console.error('Currencies subscription error:', err);
+    console.error('Currencies RTDB subscription error:', err);
   });
 }
 
 export function subscribeProducts(onUpdate: (products: Product[]) => void) {
-  return onSnapshot(collection(db, 'products'), (snapshot) => {
+  const productsRef = ref(db, 'products');
+  return onValue(productsRef, (snapshot) => {
     const list: Product[] = [];
-    snapshot.forEach(doc => {
-      list.push(doc.data() as Product);
-    });
+    if (snapshot.exists()) {
+      snapshot.forEach(childSnap => {
+        list.push(childSnap.val() as Product);
+      });
+    }
     onUpdate(list);
   }, (err) => {
-    console.error('Products subscription error:', err);
+    console.error('Products RTDB subscription error:', err);
   });
 }
 
 export function subscribeOrders(onUpdate: (orders: Order[]) => void) {
-  // Ordered by createdAt descending if exists, otherwise local fallback
-  return onSnapshot(collection(db, 'orders'), (snapshot) => {
+  const ordersRef = ref(db, 'orders');
+  return onValue(ordersRef, (snapshot) => {
     const list: Order[] = [];
-    snapshot.forEach(doc => {
-      list.push(doc.data() as Order);
-    });
-    // Sort manually by dynamic timestamps or createdAt
+    if (snapshot.exists()) {
+      snapshot.forEach(childSnap => {
+        list.push(childSnap.val() as Order);
+      });
+    }
+    // Sort descending by creation timestamp
     list.sort((a, b) => {
       const aTime = (a as any).createdAt || 0;
       const bTime = (b as any).createdAt || 0;
@@ -172,88 +186,94 @@ export function subscribeOrders(onUpdate: (orders: Order[]) => void) {
     });
     onUpdate(list);
   }, (err) => {
-    console.error('Orders subscription error:', err);
+    console.error('Orders RTDB subscription error:', err);
   });
 }
 
 export function subscribeWhatsAppConfig(onUpdate: (config: WhatsAppConfig) => void) {
-  return onSnapshot(doc(db, 'config', 'whatsapp'), (docSnap) => {
-    if (docSnap.exists()) {
-      onUpdate(docSnap.data() as WhatsAppConfig);
+  const whatsappRef = ref(db, 'config/whatsapp');
+  return onValue(whatsappRef, (snapshot) => {
+    if (snapshot.exists()) {
+      onUpdate(snapshot.val() as WhatsAppConfig);
     }
   }, (err) => {
-    console.error('WhatsApp config subscription error:', err);
+    console.error('WhatsApp config RTDB subscription error:', err);
   });
 }
 
 export function subscribeGeneralConfig(onUpdate: (francRate: number) => void) {
-  return onSnapshot(doc(db, 'config', 'general'), (docSnap) => {
-    if (docSnap.exists()) {
-      onUpdate((docSnap.data() as any).currentFrancRate || 5900);
+  const generalRef = ref(db, 'config/general');
+  return onValue(generalRef, (snapshot) => {
+    if (snapshot.exists()) {
+      onUpdate((snapshot.val() as any).currentFrancRate || 5900);
     }
   }, (err) => {
-    console.error('General config subscription error:', err);
+    console.error('General config RTDB subscription error:', err);
   });
 }
 
-// Database Mutations
+export function subscribeSystemAlerts(onUpdate: (alerts: SystemAlert[]) => void) {
+  const alertsRef = ref(db, 'alerts');
+  return onValue(alertsRef, (snapshot) => {
+    const list: SystemAlert[] = [];
+    if (snapshot.exists()) {
+      snapshot.forEach(childSnap => {
+        list.push(childSnap.val() as SystemAlert);
+      });
+    }
+    // Sort descending by creation timestamp
+    list.sort((a, b) => b.createdAt - a.createdAt);
+    onUpdate(list);
+  }, (err) => {
+    console.error('System alerts RTDB subscription error:', err);
+  });
+}
+
+// Database mutations
+
 export async function updateCurrencyInDb(currency: Currency) {
-  await setDoc(doc(db, 'currencies', currency.id), currency, { merge: true });
+  await set(ref(db, `currencies/${currency.id}`), currency);
 }
 
 export async function deleteCurrencyInDb(id: string) {
-  await deleteDoc(doc(db, 'currencies', id));
+  await remove(ref(db, `currencies/${id}`));
 }
 
 export async function updateProductInDb(product: Product) {
-  await setDoc(doc(db, 'products', product.id), product, { merge: true });
+  await set(ref(db, `products/${product.id}`), product);
 }
 
 export async function deleteProductInDb(id: string) {
-  await deleteDoc(doc(db, 'products', id));
+  await remove(ref(db, `products/${id}`));
 }
 
 export async function addOrderToDb(order: Order) {
-  await setDoc(doc(db, 'orders', order.id), {
+  await set(ref(db, `orders/${order.id}`), {
     ...order,
     createdAt: Date.now()
   });
 }
 
 export async function updateOrderInDb(order: Order) {
-  await setDoc(doc(db, 'orders', order.id), order, { merge: true });
+  await set(ref(db, `orders/${order.id}`), order);
 }
 
 export async function deleteOrderInDb(id: string) {
-  await deleteDoc(doc(db, 'orders', id));
+  await remove(ref(db, `orders/${id}`));
 }
 
 export async function updateWhatsAppConfigInDb(config: WhatsAppConfig) {
-  await setDoc(doc(db, 'config', 'whatsapp'), config, { merge: true });
+  await set(ref(db, 'config/whatsapp'), config);
 }
 
 export async function updateGeneralConfigInDb(rate: number) {
-  await setDoc(doc(db, 'config', 'general'), { currentFrancRate: rate }, { merge: true });
-}
-
-export function subscribeSystemAlerts(onUpdate: (alerts: SystemAlert[]) => void) {
-  return onSnapshot(collection(db, 'alerts'), (snapshot) => {
-    const list: SystemAlert[] = [];
-    snapshot.forEach(doc => {
-      list.push(doc.data() as SystemAlert);
-    });
-    // Sort by createdAt descending
-    list.sort((a, b) => b.createdAt - a.createdAt);
-    onUpdate(list);
-  }, (err) => {
-    console.error('System alerts subscription error:', err);
-  });
+  await set(ref(db, 'config/general'), { currentFrancRate: rate });
 }
 
 export async function addSystemAlertToDb(alert: SystemAlert) {
-  await setDoc(doc(db, 'alerts', alert.id), alert);
+  await set(ref(db, `alerts/${alert.id}`), alert);
 }
 
 export async function deleteSystemAlertInDb(id: string) {
-  await deleteDoc(doc(db, 'alerts', id));
+  await remove(ref(db, `alerts/${id}`));
 }

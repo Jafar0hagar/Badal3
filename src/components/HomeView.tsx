@@ -19,6 +19,7 @@ interface HomeViewProps {
   systemAlerts?: SystemAlert[];
   readAlertIds?: string[];
   onMarkAlertAsRead?: (id: string) => void;
+  isDarkMode?: boolean;
 }
 
 export default function HomeView({ 
@@ -32,11 +33,24 @@ export default function HomeView({
   whatsAppConfig,
   systemAlerts = [],
   readAlertIds = [],
-  onMarkAlertAsRead
+  onMarkAlertAsRead,
+  isDarkMode = false
 }: HomeViewProps) {
   const [copied, setCopied] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  
+  // Real-time ticking clock for the home screen
+  const [currentTime, setCurrentTime] = useState<string>(() => {
+    return new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }));
+    }, 15000); // Update every 15 seconds for flawless real-time feel
+    return () => clearInterval(timer);
+  }, []);
 
   // Lookup dynamic values or fallback to defaults
   const sugarProduct = productsProp?.find(p => p.id === 'sugar' || p.category === 'sugar');
@@ -107,27 +121,39 @@ export default function HomeView({
   });
 
   return (
-    <div className="w-full h-full bg-[#FAF7F0] overflow-y-auto pb-24 text-stone-800 font-sans relative select-none" dir="rtl">
+    <div className={`w-full h-full overflow-y-auto pb-8 font-sans relative select-none transition-colors duration-200 ${
+      isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-[#FAF7F0] text-stone-800'
+    }`} dir="rtl">
       
       {/* Top Header */}
-      <div className="bg-white/80 backdrop-blur-md sticky top-0 z-20 px-5 py-3 flex items-center justify-between border-b border-stone-200/40">
+      <div className={`sticky top-0 z-20 px-5 py-3 flex items-center justify-between border-b transition-all duration-200 ${
+        isDarkMode 
+          ? 'bg-gradient-to-r from-[#1B160E] via-[#332A18] to-[#1B160E] border-[#D5A549]/25 shadow-[0_4px_16px_rgba(0,0,0,0.5)]' 
+          : 'bg-gradient-to-r from-[#FAF1D6] via-[#EBC173] to-[#D5A549] border-[#D5A549]/50 shadow-[0_4px_16px_rgba(213,165,73,0.25)]'
+      }`}>
         <div className="flex items-center gap-3">
-          <div className="relative w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200 shadow-xs">
+          <div className={`relative w-9 h-9 rounded-full flex items-center justify-center border transition-all duration-200 ${
+            isDarkMode ? 'bg-stone-900/65 border-[#D5A549]/30 shadow-[0_2px_8px_rgba(0,0,0,0.5)]' : 'bg-white/45 border-white/35 shadow-[0_2px_8px_rgba(213,165,73,0.15)]'
+          }`}>
             <BadalLogo size={28} withTag={false} />
           </div>
           <div>
-            <h2 className="text-base font-black text-[#850F1D] tracking-wide leading-tight">BADAL</h2>
-            <p className="text-[10px] text-stone-500 font-medium font-tajawal">{todayArabic}</p>
+            <h2 className={`text-base font-black tracking-wide leading-tight ${isDarkMode ? 'text-amber-100' : 'text-[#4A3716]'}`}>BADAL</h2>
+            <p className={`text-[10px] font-black font-tajawal ${isDarkMode ? 'text-stone-400' : 'text-[#4A3716]/85'}`}>{todayArabic}</p>
           </div>
         </div>
 
         {/* Notifications Button */}
         <button 
           onClick={() => setShowNotifications(!showNotifications)}
-          className="relative w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200/70 text-stone-600 flex items-center justify-center transition-all cursor-pointer"
+          className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer border active:scale-95 ${
+            isDarkMode 
+              ? 'bg-stone-900/60 hover:bg-stone-800/60 border-[#D5A549]/20 text-amber-300' 
+              : 'bg-white/45 hover:bg-white/60 border-white/20 text-[#4A3716] shadow-[0_2px_8px_rgba(213,165,73,0.15)]'
+          }`}
           aria-label="Notifications"
         >
-          <Bell className="w-4.5 h-4.5" />
+          <Bell className={`w-4.5 h-4.5 ${isDarkMode ? 'text-amber-300' : 'text-[#4A3716]'}`} />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-mono text-[9px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-md animate-bounce border border-white">
               {unreadCount}
@@ -138,8 +164,26 @@ export default function HomeView({
 
       <div className="p-4 space-y-5">
         
+        {/* Dynamic, beautifully spaced Date & Time display */}
+        <div className={`flex items-center justify-between px-4 py-3 border rounded-2xl transition-all duration-200 ${
+          isDarkMode 
+            ? 'bg-[#1C1811]/40 border-[#FAF1D6]/10 text-amber-200 shadow-[0_4px_16px_rgba(0,0,0,0.3)]' 
+            : 'bg-white border-[#EBC173]/40 text-stone-800 shadow-[0_4px_16px_rgba(213,165,73,0.15)]'
+        }`}>
+          <div className={`flex items-center gap-1.5 font-black ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>
+            <Clock className={`w-4 h-4 animate-pulse ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`} />
+            <span className="text-xs font-mono tracking-tight leading-none pt-0.5">{currentTime}</span>
+          </div>
+          <div className={`text-[10px] font-extrabold font-tajawal flex items-center gap-1 ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>
+            <span className={`w-1 h-1 rounded-full ${isDarkMode ? 'bg-stone-700' : 'bg-stone-300'}`} />
+            <span>{todayArabic}</span>
+          </div>
+        </div>
+        
         {/* Main Golden Card */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#FAF1D6] via-[#EBC173] to-[#D5A549] text-[#4A3716] p-5 shadow-md border border-[#E9C37A] group">
+        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#FAF1D6] via-[#EBC173] to-[#D5A549] text-[#4A3716] p-5 shadow-md border group ${
+          isDarkMode ? 'border-[#FAF1D6]/20 shadow-[0_6px_24px_rgba(213,165,73,0.12)]' : 'border-[#E9C37A] shadow-[0_6px_20px_rgba(213,165,73,0.22)]'
+        }`}>
           
           {/* Subtle graphic background curve */}
           <div className="absolute inset-0 pointer-events-none opacity-30 mix-blend-overlay">
@@ -205,7 +249,11 @@ export default function HomeView({
             <button
               onClick={onUpdateFrancRate}
               disabled={isUpdatingRate}
-              className="flex-1 bg-white hover:bg-[#FFFDF9] active:bg-[#F2EDE0] text-[#3D2C0E] font-bold text-xs py-2.5 px-3 rounded-xl shadow-xs border border-[#DFB24F]/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              className={`flex-1 font-bold text-xs py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                isDarkMode 
+                  ? 'bg-stone-950/80 hover:bg-stone-950 text-amber-200 border-[#D5A549]/20 shadow-xs' 
+                  : 'bg-white hover:bg-[#FFFDF9] active:bg-[#F2EDE0] text-[#3D2C0E] border-[#DFB24F]/40 shadow-xs'
+              }`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isUpdatingRate ? 'animate-spin' : ''}`} />
               <span>تحديث</span>
@@ -214,7 +262,11 @@ export default function HomeView({
             {/* Copy Price Button */}
             <button
               onClick={handleCopyPrice}
-              className="flex-1 bg-white hover:bg-[#FFFDF9] active:bg-[#F2EDE0] text-[#3D2C0E] font-bold text-xs py-2.5 px-3 rounded-xl shadow-xs border border-[#DFB24F]/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              className={`flex-1 font-bold text-xs py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                isDarkMode 
+                  ? 'bg-stone-950/80 hover:bg-stone-950 text-amber-200 border-[#D5A549]/20 shadow-xs' 
+                  : 'bg-white hover:bg-[#FFFDF9] active:bg-[#F2EDE0] text-[#3D2C0E] border-[#DFB24F]/40 shadow-xs'
+              }`}
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#3D2C0E]" />}
               <span>{copied ? 'تم النسخ!' : 'نسخ السعر'}</span>
@@ -225,53 +277,77 @@ export default function HomeView({
 
         {/* "خدمات سريعة" Section */}
         <div className="space-y-3">
-          <h3 className="text-xs font-black text-stone-700 tracking-wide">خدمات سريعة</h3>
+          <h3 className={`text-xs font-black tracking-wide ${isDarkMode ? 'text-stone-400' : 'text-stone-700'}`}>خدمات سريعة</h3>
           
           <div className="grid grid-cols-4 gap-3">
             {/* Prices tab (الأسعار) */}
             <button 
               onClick={() => onNavigate('prices')}
-              className="bg-white hover:bg-stone-50 active:bg-amber-50/50 p-2.5 rounded-xl border border-stone-200/50 shadow-xs flex flex-col items-center gap-2 transition-all group cursor-pointer"
+              className={`p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-95 ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-[#1C1811] via-[#2D2415] to-[#1C1811] border-[#D5A549]/20 shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-amber-100' 
+                  : 'bg-gradient-to-br from-[#FAF1D6] via-[#EBC173] to-[#D5A549] border-[#E9C37A] shadow-xs text-[#4A3716]'
+              }`}
             >
-              <div className="w-9 h-9 rounded-lg bg-amber-50 text-[#850F1D] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-2xs ${
+                isDarkMode ? 'bg-stone-900/85 text-amber-400 border border-[#D5A549]/15' : 'bg-white/45 text-[#4A3716]'
+              }`}>
                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
                 </svg>
               </div>
-              <span className="text-[10px] font-extrabold text-stone-600">الأسعار</span>
+              <span className={`text-[10px] font-black font-tajawal ${isDarkMode ? 'text-amber-200/90' : 'text-[#4A3716]'}`}>الأسعار</span>
             </button>
 
             {/* Products tab (المنتجات) */}
             <button 
               onClick={() => onNavigate('products')}
-              className="bg-white hover:bg-stone-50 active:bg-amber-50/50 p-2.5 rounded-xl border border-stone-200/50 shadow-xs flex flex-col items-center gap-2 transition-all group cursor-pointer"
+              className={`p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-95 ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-[#1C1811] via-[#2D2415] to-[#1C1811] border-[#D5A549]/20 shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-amber-100' 
+                  : 'bg-gradient-to-br from-[#FAF1D6] via-[#EBC173] to-[#D5A549] border-[#E9C37A] shadow-xs text-[#4A3716]'
+              }`}
             >
-              <div className="w-9 h-9 rounded-lg bg-amber-50 text-[#850F1D] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-2xs ${
+                isDarkMode ? 'bg-stone-900/85 text-amber-400 border border-[#D5A549]/15' : 'bg-white/45 text-[#4A3716]'
+              }`}>
                 <ShoppingBag className="w-5 h-5" />
               </div>
-              <span className="text-[10px] font-extrabold text-stone-600">المنتجات</span>
+              <span className={`text-[10px] font-black font-tajawal ${isDarkMode ? 'text-amber-200/90' : 'text-[#4A3716]'}`}>المنتجات</span>
             </button>
 
             {/* Market trend chart (السوق) */}
             <button 
               onClick={onOpenMarket}
-              className="bg-white hover:bg-stone-50 active:bg-amber-50/50 p-2.5 rounded-xl border border-stone-200/50 shadow-xs flex flex-col items-center gap-2 transition-all group cursor-pointer"
+              className={`p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-95 ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-[#1C1811] via-[#2D2415] to-[#1C1811] border-[#D5A549]/20 shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-amber-100' 
+                  : 'bg-gradient-to-br from-[#FAF1D6] via-[#EBC173] to-[#D5A549] border-[#E9C37A] shadow-xs text-[#4A3716]'
+              }`}
             >
-              <div className="w-9 h-9 rounded-lg bg-amber-50 text-[#850F1D] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-2xs ${
+                isDarkMode ? 'bg-stone-900/85 text-amber-400 border border-[#D5A549]/15' : 'bg-white/45 text-[#4A3716]'
+              }`}>
                 <TrendingUp className="w-5 h-5" />
               </div>
-              <span className="text-[10px] font-extrabold text-stone-600">السوق</span>
+              <span className={`text-[10px] font-black font-tajawal ${isDarkMode ? 'text-amber-200/90' : 'text-[#4A3716]'}`}>السوق</span>
             </button>
 
             {/* Contact us (تواصل معنا) */}
             <button 
               onClick={() => setShowContactModal(true)}
-              className="bg-white hover:bg-stone-50 active:bg-amber-50/50 p-2.5 rounded-xl border border-stone-200/50 shadow-xs flex flex-col items-center gap-2 transition-all group cursor-pointer"
+              className={`p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-95 ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-[#1C1811] via-[#2D2415] to-[#1C1811] border-[#D5A549]/20 shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-amber-100' 
+                  : 'bg-gradient-to-br from-[#FAF1D6] via-[#EBC173] to-[#D5A549] border-[#E9C37A] shadow-xs text-[#4A3716]'
+              }`}
             >
-              <div className="w-9 h-9 rounded-lg bg-amber-50 text-[#850F1D] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-2xs ${
+                isDarkMode ? 'bg-stone-900/85 text-amber-400 border border-[#D5A549]/15' : 'bg-white/45 text-[#4A3716]'
+              }`}>
                 <Phone className="w-5 h-5" />
               </div>
-              <span className="text-[10px] font-extrabold text-stone-600 text-center">تواصل معنا</span>
+              <span className={`text-[10px] font-black text-center font-tajawal ${isDarkMode ? 'text-amber-200/90' : 'text-[#4A3716]'}`}>تواصل معنا</span>
             </button>
           </div>
         </div>
@@ -279,10 +355,10 @@ export default function HomeView({
         {/* "المنتجات الأكثر طلباً" Section */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-stone-700 tracking-wide">المنتجات الأكثر طلباً</h3>
+            <h3 className={`text-xs font-black tracking-wide ${isDarkMode ? 'text-stone-400' : 'text-stone-700'}`}>المنتجات الأكثر طلباً</h3>
             <button 
               onClick={() => onNavigate('products')}
-              className="text-xs font-extrabold text-[#850F1D] hover:underline cursor-pointer"
+              className={`text-xs font-extrabold hover:underline cursor-pointer ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}
             >
               عرض الكل
             </button>
@@ -291,16 +367,24 @@ export default function HomeView({
           <div className="grid grid-cols-2 gap-4">
             
             {/* Sugar Card */}
-            <div className="bg-white rounded-2xl p-3 border border-stone-200/40 shadow-xs flex flex-col items-center text-center group">
+            <div className={`rounded-2xl p-3 border flex flex-col items-center text-center group transition-all duration-200 ${
+              isDarkMode 
+                ? 'bg-[#1C1811] border-[#FAF1D6]/10 text-stone-100 shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.15)] hover:border-[#EBC173]/30' 
+                : 'bg-white border-[#EBC173]/40 text-stone-800 shadow-[0_4px_16px_rgba(213,165,73,0.15)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.22)] hover:border-[#EBC173]/60'
+            }`}>
               <div className="w-24 h-24 mb-2 group-hover:scale-105 transition-transform duration-200">
                 <SugarIllustration />
               </div>
-              <h4 className="font-extrabold text-xs text-stone-800">{sugarName}</h4>
-              <p className="text-[#850F1D] font-black text-xs mt-1">{sugarPrice} {sugarCurrency}</p>
+              <h4 className={`font-extrabold text-xs ${isDarkMode ? 'text-amber-100' : 'text-stone-800'}`}>{sugarName}</h4>
+              <p className={`font-black text-xs mt-1 ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>{sugarPrice} {sugarCurrency}</p>
               
               <button 
                 onClick={() => onOpenWhatsApp(sugarName, `${sugarPrice} ${sugarCurrency}`)}
-                className="w-full bg-[#850F1D] hover:bg-[#720a15] text-white font-bold text-[10px] py-2 rounded-xl mt-3 flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                className={`w-full font-bold text-[10px] py-2 rounded-xl mt-3 flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-amber-500 text-stone-950 hover:bg-amber-400 shadow-[0_4px_12px_rgba(245,158,11,0.2)] hover:shadow-[0_6px_16px_rgba(245,158,11,0.35)] border border-amber-500/10' 
+                    : 'bg-[#850F1D] text-white hover:bg-[#720a15] shadow-[0_4px_12px_rgba(213,165,73,0.3)] hover:shadow-[0_6px_16px_rgba(213,165,73,0.45)]'
+                }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>شراء عبر واتساب</span>
@@ -308,16 +392,24 @@ export default function HomeView({
             </div>
 
             {/* Flour Card */}
-            <div className="bg-white rounded-2xl p-3 border border-stone-200/40 shadow-xs flex flex-col items-center text-center group">
+            <div className={`rounded-2xl p-3 border flex flex-col items-center text-center group transition-all duration-200 ${
+              isDarkMode 
+                ? 'bg-[#1C1811] border-[#FAF1D6]/10 text-stone-100 shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.15)] hover:border-[#EBC173]/30' 
+                : 'bg-white border-[#EBC173]/40 text-stone-800 shadow-[0_4px_16px_rgba(213,165,73,0.15)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.22)] hover:border-[#EBC173]/60'
+            }`}>
               <div className="w-24 h-24 mb-2 group-hover:scale-105 transition-transform duration-200">
                 <FlourIllustration />
               </div>
-              <h4 className="font-extrabold text-xs text-stone-800">{flourName}</h4>
-              <p className="text-[#850F1D] font-black text-xs mt-1">{flourPrice} {flourCurrency}</p>
+              <h4 className={`font-extrabold text-xs ${isDarkMode ? 'text-amber-100' : 'text-stone-800'}`}>{flourName}</h4>
+              <p className={`font-black text-xs mt-1 ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>{flourPrice} {flourCurrency}</p>
               
               <button 
                 onClick={() => onOpenWhatsApp(flourName, `${flourPrice} ${flourCurrency}`)}
-                className="w-full bg-[#850F1D] hover:bg-[#720a15] text-white font-bold text-[10px] py-2 rounded-xl mt-3 flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                className={`w-full font-bold text-[10px] py-2 rounded-xl mt-3 flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-amber-500 text-stone-950 hover:bg-amber-400 shadow-[0_4px_12px_rgba(245,158,11,0.2)] hover:shadow-[0_6px_16px_rgba(245,158,11,0.35)] border border-amber-500/10' 
+                    : 'bg-[#850F1D] text-white hover:bg-[#720a15] shadow-[0_4px_12px_rgba(213,165,73,0.3)] hover:shadow-[0_6px_16px_rgba(213,165,73,0.45)]'
+                }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>شراء عبر واتساب</span>
@@ -338,37 +430,39 @@ export default function HomeView({
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'tween', duration: 0.25 }}
-              className="bg-white w-4/5 h-full shadow-2xl flex flex-col p-4 z-40 relative"
+              className={`w-4/5 h-full shadow-2xl flex flex-col p-4 z-40 relative transition-colors duration-200 ${
+                isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-white text-[#4A3716]'
+              }`}
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-stone-100 pb-3 mb-3">
-                <h3 className="font-black text-sm text-[#850F1D] flex items-center gap-1.5">
+              <div className={`flex items-center justify-between border-b pb-3 mb-3 ${isDarkMode ? 'border-stone-800' : 'border-stone-100'}`}>
+                <h3 className={`font-black text-sm flex items-center gap-1.5 ${isDarkMode ? 'text-amber-300' : 'text-[#850F1D]'}`}>
                   <Bell className="w-4.5 h-4.5" />
                   <span>التنبيهات العاجلة</span>
                   {unreadCount > 0 && (
-                    <span className="bg-rose-100 text-rose-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-100 text-rose-700'}`}>
                       {unreadCount} جديد
                     </span>
                   )}
                 </h3>
                 <button 
                   onClick={() => setShowNotifications(false)}
-                  className="p-1 hover:bg-stone-100 rounded-full transition-colors"
+                  className={`p-1 rounded-full transition-colors ${isDarkMode ? 'hover:bg-stone-900 text-stone-400' : 'hover:bg-stone-100 text-[#4A3716]'}`}
                 >
-                  <ArrowLeft className="w-4.5 h-4.5 text-stone-500" />
+                  <ArrowLeft className="w-4.5 h-4.5" />
                 </button>
               </div>
 
               {/* Advanced controls: Sync & Mark All Read */}
               <div className="flex items-center justify-between gap-1 mb-3">
                 {/* Time filter tabs */}
-                <div className="flex bg-stone-100 p-0.5 rounded-lg border border-stone-200/50">
+                <div className={`flex p-0.5 rounded-lg border ${isDarkMode ? 'bg-stone-900 border-stone-800' : 'bg-stone-100 border-stone-200/50'}`}>
                   <button
                     onClick={() => setTimeFilter('all')}
                     className={`px-2.5 py-1 rounded-md text-[10px] font-bold font-tajawal transition-all ${
                       timeFilter === 'all' 
-                        ? 'bg-white text-stone-800 shadow-xs' 
-                        : 'text-stone-500 hover:text-stone-700'
+                        ? (isDarkMode ? 'bg-stone-800 text-amber-300 shadow-xs' : 'bg-white text-stone-800 shadow-xs') 
+                        : (isDarkMode ? 'text-stone-500 hover:text-stone-300' : 'text-stone-500 hover:text-stone-700')
                     }`}
                   >
                     الكل
@@ -377,8 +471,8 @@ export default function HomeView({
                     onClick={() => setTimeFilter('hour')}
                     className={`px-2 py-1 rounded-md text-[10px] font-bold font-tajawal transition-all flex items-center gap-1 ${
                       timeFilter === 'hour' 
-                        ? 'bg-[#850F1D] text-white shadow-xs' 
-                        : 'text-stone-500 hover:text-stone-700'
+                        ? (isDarkMode ? 'bg-[#FAF1D6] text-stone-950 shadow-xs' : 'bg-[#850F1D] text-white shadow-xs') 
+                        : (isDarkMode ? 'text-stone-500 hover:text-stone-300' : 'text-stone-500 hover:text-stone-700')
                     }`}
                   >
                     <Clock className="w-3 h-3" />
@@ -392,7 +486,11 @@ export default function HomeView({
                   {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllAsRead}
-                      className="p-1.5 rounded-lg bg-stone-100 hover:bg-amber-100 text-stone-600 hover:text-amber-800 border border-stone-200/40 hover:border-amber-200 flex items-center justify-center transition-all cursor-pointer"
+                      className={`p-1.5 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
+                        isDarkMode 
+                          ? 'bg-stone-900 hover:bg-[#332A18] text-amber-300 border-stone-800 hover:border-[#D5A549]/35' 
+                          : 'bg-stone-100 hover:bg-amber-100 text-stone-600 hover:text-amber-800 border border-stone-200/40 hover:border-amber-200'
+                      }`}
                       title="تحديد الكل كمقروء"
                     >
                       <CheckSquare className="w-3.5 h-3.5" />
@@ -402,7 +500,11 @@ export default function HomeView({
                   {/* Manual Sync Cloud alerts */}
                   <button
                     onClick={handleSyncAlerts}
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center transition-all cursor-pointer"
+                    className={`p-1.5 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
+                      isDarkMode 
+                        ? 'bg-stone-900 hover:bg-[#332A18] text-amber-300 border-stone-800' 
+                        : 'bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200/45'
+                    }`}
                     title="مزامنة الإشعارات"
                     disabled={isSyncingAlerts}
                   >
@@ -413,18 +515,22 @@ export default function HomeView({
 
               {/* Syncing status visual cue */}
               {isSyncingAlerts && (
-                <div className="mb-3 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 animate-pulse">
+                <div className={`mb-3 px-3 py-1.5 rounded-xl border flex items-center gap-2 animate-pulse ${
+                  isDarkMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-700'
+                }`}>
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                  <span className="text-[10px] font-bold text-amber-700 font-tajawal">جاري المزامنة مع سحابة بدل...</span>
+                  <span className="text-[10px] font-bold font-tajawal">جاري المزامنة مع سحابة بدل...</span>
                 </div>
               )}
 
               {/* Alerts List */}
               <div className="space-y-2.5 flex-1 overflow-y-auto no-scrollbar pb-4">
                 {filteredNotifications.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center px-4 bg-stone-50 rounded-2xl border border-stone-100">
+                  <div className={`flex flex-col items-center justify-center py-12 text-center px-4 rounded-2xl border ${
+                    isDarkMode ? 'bg-stone-900/40 border-stone-800/60' : 'bg-stone-50 rounded-2xl border-stone-100'
+                  }`}>
                     <ShieldAlert className="w-8 h-8 text-stone-300 mb-2" />
-                    <h4 className="text-[11px] font-bold text-stone-700">لا توجد تنبيهات عاجلة</h4>
+                    <h4 className={`text-[11px] font-bold ${isDarkMode ? 'text-[#FAF1D6]' : 'text-stone-700'}`}>لا توجد تنبيهات عاجلة</h4>
                     <p className="text-[9px] text-stone-400 mt-1 max-w-[150px] leading-relaxed font-tajawal">
                       {timeFilter === 'hour' 
                         ? 'لم يتم إرسال أي تنبيهات إدارية جديدة خلال الساعة الماضية.' 
@@ -440,23 +546,23 @@ export default function HomeView({
                         onClick={() => onMarkAlertAsRead && onMarkAlertAsRead(notif.id)}
                         className={`p-3 rounded-xl border transition-all cursor-pointer relative overflow-hidden group ${
                           isUnread 
-                            ? 'bg-amber-50/55 border-amber-200/60 shadow-xs' 
-                            : 'bg-stone-50/80 border-stone-200/30 opacity-75'
+                            ? (isDarkMode ? 'bg-[#332A18]/45 border-[#D5A549]/20 shadow-[0_2px_8px_rgba(0,0,0,0.3)]' : 'bg-amber-50/55 border-amber-200/60 shadow-xs') 
+                            : (isDarkMode ? 'bg-stone-900/40 border-stone-800/40 opacity-70' : 'bg-stone-50/80 border-stone-200/30 opacity-75')
                         }`}
                       >
                         {/* Interactive hover glow */}
                         {isUnread && (
-                          <div className="absolute inset-y-0 right-0 w-1 bg-[#850F1D]" />
+                          <div className={`absolute inset-y-0 right-0 w-1 ${isDarkMode ? 'bg-amber-400' : 'bg-[#850F1D]'}`} />
                         )}
                         <div className="flex justify-between items-start gap-2">
-                          <h4 className="font-extrabold text-[11px] text-stone-800">{notif.title}</h4>
+                          <h4 className={`font-extrabold text-[11px] ${isDarkMode ? 'text-amber-200' : 'text-stone-800'}`}>{notif.title}</h4>
                           <span className="text-[8px] text-stone-400 font-bold font-tajawal shrink-0">{notif.time || 'الآن'}</span>
                         </div>
-                        <p className="text-[10px] text-stone-600 mt-1 leading-relaxed font-tajawal">{notif.text}</p>
+                        <p className={`text-[10px] mt-1 leading-relaxed font-tajawal ${isDarkMode ? 'text-stone-300' : 'text-stone-600'}`}>{notif.text}</p>
                         {isUnread && (
                           <div className="flex items-center gap-1 mt-1.5">
-                            <span className="w-1.5 h-1.5 bg-[#850F1D] rounded-full animate-pulse" />
-                            <span className="text-[8px] font-bold text-[#850F1D] font-tajawal">جديد - اضغط لتحديد كمقروء</span>
+                            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDarkMode ? 'bg-amber-400' : 'bg-[#850F1D]'}`} />
+                            <span className={`text-[8px] font-bold font-tajawal ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>جديد - اضغط لتحديد كمقروء</span>
                           </div>
                         )}
                       </div>
@@ -468,7 +574,9 @@ export default function HomeView({
               {/* Close Button */}
               <button 
                 onClick={() => setShowNotifications(false)}
-                className="w-full bg-[#850F1D] hover:bg-[#720a15] active:scale-98 text-white text-xs font-bold py-2.5 rounded-xl mt-2 transition-all shadow-md cursor-pointer"
+                className={`w-full text-xs font-bold py-2.5 rounded-xl mt-2 transition-all shadow-md cursor-pointer ${
+                  isDarkMode ? 'bg-amber-500 text-stone-950 hover:bg-amber-400' : 'bg-[#850F1D] text-white hover:bg-[#720a15]'
+                }`}
               >
                 إغلاق التنبيهات
               </button>
@@ -486,11 +594,13 @@ export default function HomeView({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white w-full max-w-xs rounded-2xl overflow-hidden shadow-2xl p-4 text-center border border-amber-200/30"
+              className={`w-full max-w-xs rounded-2xl overflow-hidden shadow-2xl p-4 text-center border transition-colors duration-200 ${
+                isDarkMode ? 'bg-[#1C1811] border-[#FAF1D6]/10 text-stone-100' : 'bg-white border-amber-200/30'
+              }`}
             >
-              <HelpCircle className="w-12 h-12 text-[#850F1D] mx-auto mb-3" />
-              <h3 className="font-black text-sm text-stone-800 mb-1">تواصل مع الدعم الفني لـ بدل</h3>
-              <p className="text-[11px] text-stone-500 font-medium leading-relaxed mb-4">
+              <HelpCircle className={`w-12 h-12 mx-auto mb-3 ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`} />
+              <h3 className={`font-black text-sm mb-1 ${isDarkMode ? 'text-amber-100' : 'text-stone-800'}`}>تواصل مع الدعم الفني لـ بدل</h3>
+              <p className={`text-[11px] font-medium leading-relaxed mb-4 ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>
                 نحن هنا لمساعدتك في أي استفسارات بخصوص أسعار صرف العملات أو طلبات السلع التموينية.
               </p>
 
@@ -507,7 +617,9 @@ export default function HomeView({
                 
                 <a 
                   href={`tel:${whatsAppConfig?.salesPhone1 || "+249912345678"}`}
-                  className="w-full bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className={`w-full text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                    isDarkMode ? 'bg-stone-900 hover:bg-stone-800 text-amber-200 border border-stone-800' : 'bg-stone-100 hover:bg-stone-200 text-stone-800'
+                  }`}
                 >
                   <Phone className="w-4 h-4" />
                   <span>اتصال هاتفي مباشر</span>
@@ -516,7 +628,7 @@ export default function HomeView({
 
               <button 
                 onClick={() => setShowContactModal(false)}
-                className="text-[11px] font-bold text-stone-500 hover:text-stone-800 hover:underline transition-colors mt-4 block mx-auto"
+                className={`text-[11px] font-bold transition-colors mt-4 block mx-auto ${isDarkMode ? 'text-stone-400 hover:text-amber-400' : 'text-[#4A3716] hover:text-[#850F1D]'}`}
               >
                 إلغاء
               </button>

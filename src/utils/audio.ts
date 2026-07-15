@@ -3,6 +3,7 @@
  */
 
 export function playNotificationSound(count?: number, actionType?: 'order_received' | 'price_updated' | 'test' | string) {
+  if (typeof window === 'undefined') return;
   try {
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     

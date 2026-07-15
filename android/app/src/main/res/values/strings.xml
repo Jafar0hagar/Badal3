@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">بدل للخدمات والعملات</string>
+    <string name="title_activity_main">بدل للخدمات والعملات</string>
+    <string name="package_name">com.badal.app</string>
+    <string name="custom_url_scheme">com.badal.app</string>
+</resources>

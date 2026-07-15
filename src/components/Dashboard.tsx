@@ -334,7 +334,7 @@ export default function Dashboard({
       price: Number(newProduct.price) || 0,
       currencySymbol: 'فرنك',
       category: (newProduct.category as any) || 'foodstuffs',
-      categoryAr: newProduct.category === 'sugar' ? 'سكر' : newProduct.category === 'rice' ? 'أرز' : newProduct.category === 'oil' ? 'زيوت' : 'غذائيات',
+      categoryAr: (newProduct.category as string) === 'sugar' ? 'سكر' : (newProduct.category as string) === 'rice' ? 'أرز' : (newProduct.category as string) === 'oil' ? 'زيوت' : 'غذائيات',
       imageUrl: newProduct.imageUrl || '',
       isAvailable: newProduct.isAvailable !== undefined ? newProduct.isAvailable : true,
       unit: newProduct.unit || 'شوال',

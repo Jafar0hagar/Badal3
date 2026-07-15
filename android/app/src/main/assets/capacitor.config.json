@@ -1,0 +1,17 @@
+{
+	"appId": "com.badal.app",
+	"appName": "بدل للخدمات والعملات",
+	"webDir": "dist",
+	"server": {
+		"cleartext": true,
+		"allowNavigation": [
+			"10.0.2.2",
+			"localhost",
+			"*.firebaseapp.com",
+			"*.googleapis.com"
+		]
+	},
+	"android": {
+		"allowMixedContent": true
+	}
+}

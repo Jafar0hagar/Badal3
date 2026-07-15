@@ -18,9 +18,10 @@ interface PricesViewProps {
   currentFrancRate: number;
   currencies?: SharedCurrency[];
   onBack?: () => void;
+  isDarkMode?: boolean;
 }
 
-export default function PricesView({ currentFrancRate, currencies: currenciesProp, onBack }: PricesViewProps) {
+export default function PricesView({ currentFrancRate, currencies: currenciesProp, onBack, isDarkMode = false }: PricesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const emojiMap: Record<string, string> = {
@@ -77,22 +78,32 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
   );
 
   return (
-    <div className="w-full h-full bg-[#FAF7F0] overflow-y-auto pb-24 text-stone-800 font-sans relative" dir="rtl">
+    <div className={`w-full h-full overflow-y-auto pb-8 font-sans relative transition-colors duration-200 ${
+      isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-[#FAF7F0] text-stone-800'
+    }`} dir="rtl">
       
-      {/* Sticky Header */}
-      <div className="bg-white/80 backdrop-blur-md sticky top-0 z-10 px-5 py-4 flex items-center justify-between border-b border-stone-200/40">
+      {/* Sticky Header with Golden Currency Card Theme */}
+      <div className={`sticky top-0 z-10 px-5 py-4 flex items-center justify-between border-b transition-all duration-200 ${
+        isDarkMode 
+          ? 'bg-gradient-to-r from-[#1B160E] via-[#332A18] to-[#1B160E] border-[#D5A549]/25 shadow-[0_4px_16px_rgba(0,0,0,0.5)]' 
+          : 'bg-gradient-to-r from-[#FAF1D6] via-[#EBC173] to-[#D5A549] border-[#D5A549]/50 shadow-[0_4px_16px_rgba(213,165,73,0.25)]'
+      }`}>
         {onBack ? (
           <button 
             onClick={onBack}
-            className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer border active:scale-95 shrink-0 ${
+              isDarkMode 
+                ? 'bg-stone-900/60 hover:bg-stone-800/60 border-[#D5A549]/20 text-amber-300' 
+                : 'bg-white/45 hover:bg-white/60 border-white/20 text-[#4A3716] shadow-[0_2px_8px_rgba(213,165,73,0.15)]'
+            }`}
             aria-label="Back"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className={`w-5 h-5 ${isDarkMode ? 'text-amber-300' : 'text-[#4A3716]'}`} />
           </button>
         ) : (
           <div className="w-8 h-8" />
         )}
-        <h2 className="text-base font-black text-stone-800 tracking-wide font-cairo">الأسعار</h2>
+        <h2 className={`text-base font-black tracking-wide font-cairo ${isDarkMode ? 'text-amber-100' : 'text-[#4A3716]'}`}>الأسعار</h2>
         <div className="w-8 h-8" />
       </div>
 
@@ -105,7 +116,11 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
             placeholder="ابحث عن عملة..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-stone-200/60 rounded-xl py-3 pr-10 pl-4 text-xs font-medium focus:outline-hidden focus:ring-1 focus:ring-[#850F1D] focus:border-[#850F1D] shadow-xs"
+            className={`w-full border rounded-xl py-3 pr-10 pl-4 text-xs font-medium focus:outline-hidden focus:ring-1 transition-all duration-200 ${
+              isDarkMode 
+                ? 'bg-stone-900/60 border-[#D5A549]/20 text-amber-100 placeholder-stone-500 focus:ring-[#D5A549] focus:border-[#D5A549] shadow-[0_4px_16px_rgba(0,0,0,0.3)]' 
+                : 'bg-white border-[#EBC173]/50 text-stone-800 focus:ring-[#D5A549] focus:border-[#D5A549] shadow-[0_4px_16px_rgba(213,165,73,0.12)]'
+            }`}
           />
           <Search className="w-4 h-4 text-stone-400 absolute right-3.5 top-3.5" />
         </div>
@@ -115,16 +130,24 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
           {filteredCurrencies.map((currency) => (
             <div
               key={currency.id}
-              className="bg-white rounded-xl p-3.5 border border-stone-200/30 shadow-xs flex items-center justify-between transition-all"
+              className={`rounded-xl p-3.5 border transition-all duration-200 flex items-center justify-between ${
+                isDarkMode 
+                  ? 'bg-[#1C1811] border-[#FAF1D6]/10 text-stone-100 shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.15)] hover:border-[#EBC173]/30' 
+                  : 'bg-white border-[#EBC173]/40 text-stone-800 shadow-[0_4px_16px_rgba(213,165,73,0.15)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.22)] hover:border-[#EBC173]/60'
+              }`}
             >
               <div className="flex items-center gap-3">
                 {/* Custom circular flag background */}
-                <div className="w-10 h-10 rounded-full bg-stone-50 flex items-center justify-center border border-stone-100 text-2xl shadow-inner select-none leading-none">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border text-2xl shadow-inner select-none leading-none ${
+                  isDarkMode 
+                    ? 'bg-gradient-to-br from-[#332A18]/50 to-[#1B160E]/30 border-[#D5A549]/20' 
+                    : 'bg-gradient-to-br from-[#FAF1D6]/30 to-[#EBC173]/10 border-[#EBC173]/30'
+                }`}>
                   {currency.flag}
                 </div>
                 
                 <div className="space-y-1">
-                  <h4 className="font-extrabold text-xs text-stone-800">{currency.code === 'XAF' ? 'ألف فرنك تشادي' : currency.name}</h4>
+                  <h4 className={`font-extrabold text-xs ${isDarkMode ? 'text-amber-100' : 'text-stone-800'}`}>{currency.code === 'XAF' ? 'ألف فرنك تشادي' : currency.name}</h4>
                   <p className="text-[10px] text-stone-400 font-bold font-tajawal">{currency.lastUpdated}</p>
                 </div>
               </div>
@@ -132,26 +155,32 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
               <div className="flex items-center gap-2.5 text-left">
                 <div className="space-y-0.5">
                   <div className="flex items-baseline justify-end gap-1">
-                    <span className="font-black text-[#850F1D] text-base leading-none">{currency.rate.toLocaleString()}</span>
-                    <span className="text-[9px] font-bold text-stone-500 font-tajawal">ج.س</span>
+                    <span className={`font-black text-base leading-none ${isDarkMode ? 'text-red-400 font-extrabold' : 'text-[#850F1D]'}`}>{currency.rate.toLocaleString()}</span>
+                    <span className={`text-[9px] font-bold font-tajawal ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>ج.س</span>
                   </div>
-                  <span className="text-[9px] font-black text-stone-400">{currency.code} / ١</span>
+                  <span className={`text-[9px] font-black ${isDarkMode ? 'text-stone-500' : 'text-stone-400'}`}>{currency.code} / ١</span>
                 </div>
 
                 {/* Trend Arrows matching screenshot */}
                 {currency.trend === 'up' && (
-                  <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
+                  }`}>
                     <ArrowUpRight className="w-3.5 h-3.5 stroke-[3px]" />
                   </div>
                 )}
                 {currency.trend === 'down' && (
-                  <div className="w-6 h-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-rose-500/10 text-rose-400' : 'bg-rose-50 text-rose-600'
+                  }`}>
                     <ArrowDownRight className="w-3.5 h-3.5 stroke-[3px]" />
                   </div>
                 )}
                 {currency.trend === 'stable' && (
-                  <div className="w-6 h-6 rounded-full bg-stone-50 text-stone-400 flex items-center justify-center shrink-0">
-                    <div className="w-2 h-0.5 bg-stone-400 rounded-full" />
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-stone-800 text-stone-500' : 'bg-stone-50 text-stone-400'
+                  }`}>
+                    <div className={`w-2 h-0.5 rounded-full ${isDarkMode ? 'bg-stone-500' : 'bg-stone-400'}`} />
                   </div>
                 )}
               </div>
