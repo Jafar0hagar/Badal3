@@ -1,43 +1,69 @@
 {
   "entities": {
-    "Currency": {
-      "title": "Currency",
-      "description": "Exchange rate currency details",
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Details of admin users authorized to access the console",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "code": { "type": "string" },
-        "symbol": { "type": "string" },
-        "price": { "type": "number" },
-        "lastUpdated": { "type": "string" },
-        "flag": { "type": "string" },
-        "trend": { "type": "string" },
-        "country": { "type": "string" }
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin_full", "product_editor", "currency_manager"] },
+        "hashedPassword": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
       },
-      "required": ["id", "name", "price"]
+      "required": ["id", "name", "email", "role", "hashedPassword"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Details of suppliers and their contacts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contactInfo": { "type": "object" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "name", "status"]
     },
     "Product": {
       "title": "Product",
-      "description": "Commodity item details",
+      "description": "Details of products sold under management",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "price": { "type": "number" },
-        "currencySymbol": { "type": "string" },
-        "category": { "type": "string" },
-        "categoryAr": { "type": "string" },
-        "imageUrl": { "type": "string" },
-        "isAvailable": { "type": "boolean" },
-        "unit": { "type": "string" },
-        "whatsappMessage": { "type": "string" }
+        "description": { "type": "string" },
+        "basePrice": { "type": "number" },
+        "images": { "type": "array" },
+        "supplierIds": { "type": "array" },
+        "status": { "type": "string", "enum": ["active", "inactive", "draft"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
       },
-      "required": ["id", "name", "price", "category"]
+      "required": ["id", "name", "basePrice", "status"]
+    },
+    "CurrencyRate": {
+      "title": "CurrencyRate",
+      "description": "Exchange rates for foreign currencies relative to base",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "currencyCode": { "type": "string" },
+        "rateToBase": { "type": "number" },
+        "lastUpdated": { "type": "number" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "currencyCode", "rateToBase"]
     },
     "Order": {
       "title": "Order",
-      "description": "Purchase order details",
+      "description": "Purchase orders sent from client app",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -55,7 +81,7 @@
     },
     "SystemAlert": {
       "title": "SystemAlert",
-      "description": "Broadcasting alert text",
+      "description": "Broadcast notifications for customers",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -69,13 +95,21 @@
     }
   },
   "firestore": {
-    "currencies/{currencyId}": {
-      "schema": "Currency",
-      "description": "List of available exchange currencies"
+    "adminUsers/{userId}": {
+      "schema": "AdminUser",
+      "description": "Authorized administrators"
+    },
+    "suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "List of product suppliers"
     },
     "products/{productId}": {
       "schema": "Product",
-      "description": "List of foodstuff items and pricing"
+      "description": "Commodity products catalog"
+    },
+    "currencyRates/{rateId}": {
+      "schema": "CurrencyRate",
+      "description": "Daily exchange rates"
     },
     "orders/{orderId}": {
       "schema": "Order",

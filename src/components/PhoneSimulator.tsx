@@ -58,6 +58,7 @@ export default function PhoneSimulator({
 
   const activeWaConfig = whatsAppConfig || DEFAULT_WHATSAPP_CONFIG;
   const [activeScreen, setActiveScreen] = useState<string>('splash1');
+  const initialAlertIdsRef = useRef<Set<string> | null>(null);
 
   const handleSplash1Next = () => {
     const hasVisited = localStorage.getItem('hasVisitedBefore') === 'true';
@@ -110,12 +111,26 @@ export default function PhoneSimulator({
     }
   });
 
+  const handleMarkAlertsAsRead = (ids: string[]) => {
+    setReadAlertIds(prev => {
+      let changed = false;
+      const updated = [...prev];
+      ids.forEach(id => {
+        if (!updated.includes(id)) {
+          updated.push(id);
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem('readAlertIds', JSON.stringify(updated));
+        return updated;
+      }
+      return prev;
+    });
+  };
+
   const handleMarkAlertAsRead = (id: string) => {
-    if (!readAlertIds.includes(id)) {
-      const updated = [...readAlertIds, id];
-      setReadAlertIds(updated);
-      localStorage.setItem('readAlertIds', JSON.stringify(updated));
-    }
+    handleMarkAlertsAsRead([id]);
   };
 
   const [activeNotification, setActiveNotification] = useState<SystemAlert | null>(null);
@@ -127,43 +142,63 @@ export default function PhoneSimulator({
     }
   });
 
+  const [vibrateTrigger, setVibrateTrigger] = useState<number>(0);
+
   useEffect(() => {
     if (systemAlerts && systemAlerts.length > 0) {
-      const now = Date.now();
-      const recentUnplayedAlerts = systemAlerts.filter(alert => {
-        const isRecent = (now - (alert.createdAt || 0)) < 40000;
+      if (initialAlertIdsRef.current === null) {
+        // First load: initialize the set of existing alert IDs
+        initialAlertIdsRef.current = new Set(systemAlerts.map(a => a.id));
+        
+        // Also populate playedAlertIds so we don't play sound for existing ones
+        const existingIds = systemAlerts.map(a => a.id);
+        const uniquePlayed = Array.from(new Set([...playedAlertIds, ...existingIds]));
+        setPlayedAlertIds(uniquePlayed);
+        localStorage.setItem('playedAlertIds', JSON.stringify(uniquePlayed));
+        return;
+      }
+
+      // Subsequent updates: check for brand new alerts
+      const newLiveAlerts = systemAlerts.filter(alert => {
+        const isNotInitial = !initialAlertIdsRef.current?.has(alert.id);
         const isUnplayed = !playedAlertIds.includes(alert.id);
-        return isRecent && isUnplayed;
+        return isNotInitial && isUnplayed;
       });
 
-      if (recentUnplayedAlerts.length > 0) {
-        recentUnplayedAlerts.sort((a, b) => a.createdAt - b.createdAt);
-        const alertToPlay = recentUnplayedAlerts[recentUnplayedAlerts.length - 1];
+      if (newLiveAlerts.length > 0) {
+        // Sort by creation time to get the latest
+        newLiveAlerts.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const alertToPlay = newLiveAlerts[newLiveAlerts.length - 1];
 
-        const updatedPlayedIds = [...playedAlertIds, ...recentUnplayedAlerts.map(a => a.id)];
+        // Mark as played
+        const updatedPlayedIds = [...playedAlertIds, ...newLiveAlerts.map(a => a.id)];
         setPlayedAlertIds(updatedPlayedIds);
         localStorage.setItem('playedAlertIds', JSON.stringify(updatedPlayedIds));
 
-        const isAppOldEnough = performance.now() > 1500;
-        if (isAppOldEnough) {
+        // Add to the initial list as well so we don't process again
+        newLiveAlerts.forEach(a => initialAlertIdsRef.current?.add(a.id));
+
+        // Play the sound and show high-priority push banner ONLY if notifications are enabled
+        if (notificationsEnabled) {
           setActiveNotification(alertToPlay);
           playNotificationSound(undefined, 'urgent_alert');
+
+          // Trigger physical device vibration
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([150, 80, 150, 80, 200]);
+          }
+
+          // Trigger simulated phone shake/vibration
+          setVibrateTrigger(prev => prev + 1);
 
           const timer = setTimeout(() => {
             setActiveNotification(null);
           }, 7000);
           return () => clearTimeout(timer);
         }
-      } else {
-        const unplayedOldAlerts = systemAlerts.filter(alert => !playedAlertIds.includes(alert.id));
-        if (unplayedOldAlerts.length > 0) {
-          const updatedPlayedIds = [...playedAlertIds, ...unplayedOldAlerts.map(a => a.id)];
-          setPlayedAlertIds(updatedPlayedIds);
-          localStorage.setItem('playedAlertIds', JSON.stringify(updatedPlayedIds));
-        }
       }
     }
-  }, [systemAlerts, playedAlertIds]);
+  }, [systemAlerts, playedAlertIds, notificationsEnabled]);
 
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const triggerToast = (msg: string) => {
@@ -235,7 +270,13 @@ export default function PhoneSimulator({
   };
 
   return (
-    <div 
+    <motion.div 
+      animate={vibrateTrigger > 0 ? {
+        x: [0, -10, 10, -8, 8, -5, 5, -3, 3, 0],
+        rotate: [0, -0.5, 0.5, -0.5, 0.5, -0.3, 0.3, 0],
+        transition: { duration: 0.6, ease: "easeInOut" }
+      } : {}}
+      key={`phone-vibe-${vibrateTrigger}`}
       className={`relative w-full md:max-w-md h-screen h-[100dvh] md:h-[820px] md:my-4 md:rounded-[30px] md:border flex flex-col justify-between select-none mx-auto shrink-0 z-10 overflow-hidden transition-all duration-200 ${
         isDarkMode 
           ? 'bg-[#12100C] border-[#FAF1D6]/10 shadow-[0_12px_40px_rgba(0,0,0,0.8)] text-[#FAF7F0]' 
@@ -330,7 +371,10 @@ export default function PhoneSimulator({
                   systemAlerts={systemAlerts}
                   readAlertIds={readAlertIds}
                   onMarkAlertAsRead={handleMarkAlertAsRead}
+                  onMarkAlertsAsRead={handleMarkAlertsAsRead}
                   isDarkMode={isDarkMode}
+                  baseCurrency={baseCurrency}
+                  currencies={currencies}
                 />
               </motion.div>
             )}
@@ -367,6 +411,9 @@ export default function PhoneSimulator({
                   products={products} 
                   onBack={() => setActiveScreen('home')}
                   isDarkMode={isDarkMode}
+                  baseCurrency={baseCurrency}
+                  currentFrancRate={currentFrancRate}
+                  currencies={currencies}
                 />
               </motion.div>
             )}
@@ -413,7 +460,7 @@ export default function PhoneSimulator({
         {/* Bottom Tab Navigation Bar */}
         {['home', 'prices', 'products', 'settings'].includes(activeScreen) && (
           <div 
-            className={`sticky bottom-0 z-20 py-3 px-4 flex items-center justify-around select-none shrink-0 transition-all duration-200 border-t ${
+            className={`fixed bottom-0 left-0 right-0 md:absolute z-[999] py-3 px-4 flex items-center justify-around select-none shrink-0 transition-all duration-200 border-t ${
               isDarkMode 
                 ? 'bg-gradient-to-r from-[#1B160E] via-[#332A18] to-[#1B160E] border-[#D5A549]/25 shadow-[0_-4px_20px_rgba(0,0,0,0.6)]' 
                 : 'bg-gradient-to-r from-[#FAF1D6] via-[#EBC173] to-[#D5A549] border-[#D5A549]/60 shadow-[0_-4px_20px_rgba(213,165,73,0.25)]'
@@ -513,6 +560,6 @@ export default function PhoneSimulator({
         )}
       </AnimatePresence>
 
-    </div>
+    </motion.div>
   );
 }

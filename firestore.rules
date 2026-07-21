@@ -1,44 +1,117 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default-deny safety net
+
+    // Helper functions for data access
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity validation blueprints
+    function isValidAdminUser(data) {
+      return data.id is string 
+          && data.name is string 
+          && data.name.size() > 0
+          && data.email is string 
+          && data.email.size() > 0
+          && data.role in ['admin_full', 'product_editor', 'currency_manager']
+          && data.hashedPassword is string;
+    }
+
+    function isValidSupplier(data) {
+      return data.id is string
+          && data.id.size() > 0
+          && data.name is string
+          && data.name.size() > 0
+          && data.status in ['active', 'inactive'];
+    }
+
+    function isValidProduct(data) {
+      return data.id is string
+          && data.id.size() > 0
+          && data.name is string
+          && data.name.size() > 0
+          && data.basePrice is number
+          && data.basePrice >= 0
+          && data.status in ['active', 'inactive', 'draft'];
+    }
+
+    function isValidCurrencyRate(data) {
+      return data.id is string
+          && data.id.size() > 0
+          && data.currencyCode is string
+          && data.currencyCode.size() > 0
+          && data.rateToBase is number
+          && data.rateToBase >= 0;
+    }
+
+    function isValidOrder(data) {
+      return data.id is string
+          && data.id.size() > 0
+          && data.productName is string
+          && data.productName.size() > 0
+          && data.price is string
+          && data.customerName is string
+          && data.customerName.size() > 0
+          && data.customerPhone is string
+          && data.customerPhone.size() > 0;
+    }
+
+    function isValidSystemAlert(data) {
+      return data.id is string
+          && data.id.size() > 0
+          && data.title is string
+          && data.title.size() > 0
+          && data.text is string
+          && data.text.size() > 0
+          && data.unread is bool;
+    }
+
+    // Collection match rules
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Currencies collection - Allow public read, validate write structure
-    match /currencies/{currencyId} {
+    match /adminUsers/{userId} {
       allow read: if true;
-      allow write: if request.resource.data.name is string 
-                   && request.resource.data.code is string
-                   && request.resource.data.price is number
-                   && request.resource.data.price >= 0;
+      allow create, update: if isValidAdminUser(incoming());
+      allow delete: if true;
     }
 
-    // Products collection - Allow public read, validate write structure
+    match /suppliers/{supplierId} {
+      allow read: if true;
+      allow create, update: if isValidSupplier(incoming());
+      allow delete: if true;
+    }
+
     match /products/{productId} {
       allow read: if true;
-      allow write: if request.resource.data.name is string
-                   && request.resource.data.price is number
-                   && request.resource.data.price >= 0;
+      allow create, update: if isValidProduct(incoming());
+      allow delete: if true;
     }
 
-    // Orders collection - Allow public read, validate write structure
+    match /currencyRates/{rateId} {
+      allow read: if true;
+      allow create, update: if isValidCurrencyRate(incoming());
+      allow delete: if true;
+    }
+
     match /orders/{orderId} {
       allow read: if true;
-      allow write: if request.resource.data.productName is string
-                   && request.resource.data.customerName is string
-                   && request.resource.data.customerPhone is string;
+      allow create, update: if isValidOrder(incoming());
+      allow delete: if true;
     }
 
-    // Alerts collection - Allow public read, validate write structure
     match /alerts/{alertId} {
       allow read: if true;
-      allow write: if request.resource.data.title is string
-                   && request.resource.data.text is string;
+      allow create, update: if isValidSystemAlert(incoming());
+      allow delete: if true;
     }
 
-    // Config collection - Allow public read and write
     match /config/{configId} {
       allow read, write: if true;
     }

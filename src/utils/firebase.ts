@@ -1,279 +1,715 @@
 import { initializeApp } from 'firebase/app';
 import { 
-  getDatabase, 
-  ref, 
-  onValue, 
-  set, 
-  remove, 
-  get, 
-  child 
-} from 'firebase/database';
-import { Currency, Product, WhatsAppConfig, Order, SystemAlert } from '../types';
-
-// Load environment variables dynamically with strict fallback
-const metaEnv = (import.meta as any).env || {};
-const apiKeyRaw = metaEnv.VITE_FIREBASE_API_KEY || "AIzaSyBONzsAn9GbycG_xJRk4OkHor2W8yhMTSE";
-const apiKey = apiKeyRaw.trim(); // Prevent trailing whitespace bugs from secret loaders
-const projectId = (metaEnv.VITE_FIREBASE_PROJECT_ID || "badal-854a0").trim();
-const databaseURL = (metaEnv.VITE_FIREBASE_DATABASE_URL || "https://badal-854a0-default-rtdb.firebaseio.com").trim();
-
-const firebaseConfig = {
-  apiKey,
-  authDomain: `${projectId}.firebaseapp.com`,
-  databaseURL,
-  projectId,
-  storageBucket: `${projectId}.firebasestorage.app`,
-};
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  getDoc, 
+  getDocs,
+  getDocFromServer
+} from 'firebase/firestore';
+import { 
+  Currency, 
+  Product, 
+  WhatsAppConfig, 
+  Order, 
+  SystemAlert, 
+  AdminUser, 
+  Supplier, 
+  SchemaProduct, 
+  CurrencyRate 
+} from '../types';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Initialize and Export Realtime Database Instance
-export const db = getDatabase(app);
+// Initialize Firestore with Database ID from config
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
-// Initial data for seeding if database is empty
-const INITIAL_CURRENCIES: Currency[] = [
-  { id: 'xaf', name: 'الفرنك التشادي', code: 'XAF', symbol: 'FCFA', price: 5900, lastUpdated: 'الآن', flag: 'TD', trend: 'stable', country: 'تشاد' },
-  { id: 'usd', name: 'الدولار الأمريكي', code: 'USD', symbol: '$', price: 3200, lastUpdated: 'الآن', flag: 'US', trend: 'up', country: 'الولايات المتحدة الأمريكية' },
-  { id: 'eur', name: 'اليورو', code: 'EUR', symbol: '€', price: 3650, lastUpdated: 'الآن', flag: 'EU', trend: 'down', country: 'الاتحاد الأوروبي' },
-  { id: 'sar', name: 'الريال السعودي', code: 'SAR', symbol: 'ر.س', price: 850, lastUpdated: 'الآن', flag: 'SA', trend: 'up', country: 'المملكة العربية السعودية' },
-  { id: 'gbp', name: 'الجنيه الإسترليني', code: 'GBP', symbol: '£', price: 4200, lastUpdated: 'الآن', flag: 'GB', trend: 'stable', country: 'المملكة المتحدة' },
-  { id: 'egp', name: 'الجنيه المصري', code: 'EGP', symbol: 'ج.م', price: 65, lastUpdated: 'الآن', flag: 'EG', trend: 'stable', country: 'مصر' },
-  { id: 'aed', name: 'الدرهم الإماراتي', code: 'AED', symbol: 'د.إ', price: 870, lastUpdated: 'الآن', flag: 'AE', trend: 'up', country: 'دولة الإمارات العربية المتحدة' },
-  { id: 'kwd', name: 'الدينار الكويتي', code: 'KWD', symbol: 'د.ك', price: 10400, lastUpdated: 'الآن', flag: 'KW', trend: 'down', country: 'الكويت' },
-];
+// -------------------------------------------------------------------------
+// Error Handler conforming to system instructions
+// -------------------------------------------------------------------------
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
 
-const INITIAL_PRODUCTS: Product[] = [
-  { id: 'sugar', name: 'سكر مستورد فاخر', price: 4000, currencySymbol: 'فرنك', category: 'sugar', categoryAr: 'سكر', imageUrl: '', isAvailable: true, unit: 'كيس ١٠ كجم', whatsappMessage: 'طلب شراء سكر مستورد فاخر', description: 'سكر نقي ناصع البياض سريع الذوبان مستورد من أجود المزارع العالمية.' },
-  { id: 'flour', name: 'دقيق الخيرات فاخر', price: 3500, currencySymbol: 'فرنك', category: 'foodstuffs', categoryAr: 'غذائيات', imageUrl: '', isAvailable: true, unit: 'علبة ١ كجم', whatsappMessage: 'طلب شراء دقيق الخيرات فاخر', description: 'دقيق قمح ممتاز متعدد الاستعمالات للمخبوزات والحلويات الراقية.' },
-  { id: 'rice', name: 'أرز بسمتي درجة أولى', price: 5500, currencySymbol: 'فرنك', category: 'rice', categoryAr: 'أرز', imageUrl: '', isAvailable: true, unit: 'جوال ٥ كجم', whatsappMessage: 'طلب شراء أرز بسمتي درجة أولى', description: 'أرز بسمتي هندي طويل الحبة ذو نكهة ورائحة عطرية زكية.' },
-  { id: 'oil', name: 'زيت صباح نقي مكرر', price: 3000, currencySymbol: 'فرنك', category: 'oils', categoryAr: 'زيوت', imageUrl: '', isAvailable: true, unit: 'زجاجة ١.٥ لتر', whatsappMessage: 'طلب شراء زيت صباح نقي مكرر', description: 'زيت نباتي نقي مكرر وخفيف ومناسب لجميع أنواع الطبخ والقلي.' },
-  { id: 'tea', name: 'شاي الجزيرة الأخضر الفاخر', price: 1500, currencySymbol: 'فرنك', category: 'foodstuffs', categoryAr: 'غذائيات', imageUrl: '', isAvailable: true, unit: '٢٥٠ غرام', whatsappMessage: 'طلب شراء شاي الجزيرة الأخضر الفاخر', description: 'أوراق الشاي الأخضر الطبيعي الفاخرة غنية بمضادات الأكسدة وبطعم مميز.' },
-  { id: 'pasta', name: 'مكرونة الوادي سريعة التحضير', price: 1000, currencySymbol: 'فرنك', category: 'foodstuffs', categoryAr: 'غذائيات', imageUrl: '', isAvailable: true, unit: '٥٠٠ غرام', whatsappMessage: 'طلب شراء مكرونة الوادي سريعة التحضير', description: 'مكرونة مصنوعة من سميد القمح القاسي عالي الجودة وسهلة الإعداد.' },
-];
-
-const INITIAL_ORDERS: Order[] = [
-  { id: 'order-1', productName: 'سكر مستورد فاخر', price: '24,000', unit: 'كيس ١٠ كجم', timestamp: '١٠:١٥ ص اليوم', status: 'completed', customerName: 'أحمد التاجر', customerPhone: '+249 91 234 5678', notes: 'يرجى التوصيل للمخزن الرئيسي بسوق ليبيا' },
-  { id: 'order-2', productName: 'زيت صباح نقي مكرر', price: '18,000', unit: 'زجاجة ١.٥ لتر', timestamp: '٠٩:٣٠ ص اليوم', status: 'processing', customerName: 'فاطمة صالح', customerPhone: '+249 12 345 6789', notes: 'يرجى تأكيد التوافر للكميات الإضافية' },
-  { id: 'order-3', productName: 'أرز بسمتي درجة أولى', price: '33,000', unit: 'جوال ٥ كجم', timestamp: 'منذ ١٥ دقيقة', status: 'pending', customerName: 'محمد عثمان', customerPhone: '+249 90 876 5432', notes: 'مستلم عبر واتساب المحاكي تلقائياً' }
-];
-
-const INITIAL_ALERTS: SystemAlert[] = [
-  { id: 'alert-1', title: 'تحديث سعر الصرف', text: 'تم تحديث سعر الفرنك التشادي الآن في السوق الموازي ليكون 5900 ج.س.', time: 'منذ دقيقة', unread: true, createdAt: Date.now() - 60000 },
-  { id: 'alert-2', title: 'توفر كمية جديدة', text: 'تم توفير كميات إدارية إضافية من منتج السكر المستورد بجودة ممتازة.', time: 'منذ ساعة', unread: true, createdAt: Date.now() - 3600000 },
-  { id: 'alert-3', title: 'تحديث الأسعار المالي', text: 'تراجع طفيف لليورو واستقرار الدولار الأمريكي اليوم في الافتتاح الصباحي.', time: 'منذ ٥ ساعات', unread: false, createdAt: Date.now() - 18000000 },
-];
-
-const INITIAL_WHATSAPP_CONFIG: WhatsAppConfig = {
-  salesPhone1: '+249 91 234 5678',
-  salesPhone2: '+249 92 345 6789',
-  supportPhone: '+249 93 456 7890',
-  emergencyPhone: '+249 94 567 8901',
-  waLink: 'https://wa.me/249912345678',
-  groupLink: 'https://chat.whatsapp.com/BadalGroup',
-  channelLink: 'https://whatsapp.com/channel/0029VaBadal',
-  defaultMessage: 'مرحباً، أريد الاستفسار عن المنتجات والأسعار المتوفرة. شكراً لكم.'
-};
-
-/**
- * Seed Realtime Database with default records if they do not exist
- */
-export async function seedDatabaseIfEmpty() {
-  try {
-    const dbRef = ref(db);
-    
-    // Check and seed currencies
-    const currencySnap = await get(child(dbRef, 'currencies'));
-    if (!currencySnap.exists()) {
-      console.log('RTDB Seeding currencies...');
-      for (const c of INITIAL_CURRENCIES) {
-        await set(ref(db, `currencies/${c.id}`), c);
+// Recursively sanitizes data to omit 'undefined' values before sending to Firestore
+export function sanitizeDbData<T extends object>(obj: T): T {
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        result[key] = sanitizeDbData(value);
+      } else {
+        result[key] = value;
       }
     }
+  }
+  return result;
+}
 
-    // Check and seed products
-    const productSnap = await get(child(dbRef, 'products'));
-    if (!productSnap.exists()) {
-      console.log('RTDB Seeding products...');
-      for (const p of INITIAL_PRODUCTS) {
-        await set(ref(db, `products/${p.id}`), p);
-      }
-    }
-
-    // Check and seed orders
-    const orderSnap = await get(child(dbRef, 'orders'));
-    if (!orderSnap.exists()) {
-      console.log('RTDB Seeding orders...');
-      for (const o of INITIAL_ORDERS) {
-        await set(ref(db, `orders/${o.id}`), { ...o, createdAt: Date.now() });
-      }
-    }
-
-    // Check and seed system alerts
-    const alertSnap = await get(child(dbRef, 'alerts'));
-    if (!alertSnap.exists()) {
-      console.log('RTDB Seeding system alerts...');
-      for (const a of INITIAL_ALERTS) {
-        await set(ref(db, `alerts/${a.id}`), a);
-      }
-    }
-
-    // Check and seed config
-    const whatsappSnap = await get(child(dbRef, 'config/whatsapp'));
-    if (!whatsappSnap.exists()) {
-      console.log('RTDB Seeding whatsapp config...');
-      await set(ref(db, 'config/whatsapp'), INITIAL_WHATSAPP_CONFIG);
-    }
-
-    const generalSnap = await get(child(dbRef, 'config/general'));
-    if (!generalSnap.exists()) {
-      console.log('RTDB Seeding general config...');
-      await set(ref(db, 'config/general'), { currentFrancRate: 5900 });
-    }
-    
-    console.log('🎉 Realtime Database initial seeding completed successfully.');
-  } catch (error) {
-    console.error('Error seeding Realtime Database:', error);
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
   }
 }
 
-// Subscriptions (Real-time synchronization using RTDB onValue)
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: 'anonymous_admin_session'
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error Details: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
-export function subscribeCurrencies(onUpdate: (currencies: Currency[]) => void) {
-  const currenciesRef = ref(db, 'currencies');
-  return onValue(currenciesRef, (snapshot) => {
-    const list: Currency[] = [];
-    if (snapshot.exists()) {
-      snapshot.forEach(childSnap => {
-        list.push(childSnap.val() as Currency);
+// Test Connection on Startup
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'config', 'whatsapp'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('offline')) {
+      console.warn("Firestore client is offline or config is misaligned:", error);
+    }
+  }
+}
+testConnection();
+
+// Helper to hash string to SHA-256 for passwords
+export async function hashString(str: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
+
+// -------------------------------------------------------------------------
+// Metadata for Mapping currency rates to old visual models
+// -------------------------------------------------------------------------
+const CURRENCY_METADATA: Record<string, { name: string; symbol: string; flag: string; country: string; trend: 'up' | 'down' | 'stable' }> = {
+  XAF: { name: 'الفرنك التشادي', symbol: 'FCFA', flag: '🇹🇩', country: 'تشاد', trend: 'stable' },
+  USDT: { name: 'تتر (USDT)', symbol: 'USDT', flag: '🇺🇸', country: 'الولايات المتحدة الأمريكية', trend: 'up' },
+  USD: { name: 'تتر (USDT)', symbol: 'USDT', flag: '🇺🇸', country: 'الولايات المتحدة الأمريكية', trend: 'up' },
+  EGP: { name: 'الجنيه المصري', symbol: 'ج.م', flag: '🇪🇬', country: 'جمهورية مصر العربية', trend: 'stable' },
+  NGN: { name: 'النايرا النيجيرية', symbol: '₦', flag: '🇳🇬', country: 'جمهورية نيجيريا الاتحادية', trend: 'stable' },
+};
+
+function getCategory(name: string): { category: 'sugar' | 'rice' | 'oils' | 'foodstuffs' | 'other'; categoryAr: string } {
+  const lowercase = name.toLowerCase();
+  if (lowercase.includes('سكر') || lowercase.includes('sugar')) return { category: 'sugar', categoryAr: 'سكر' };
+  if (lowercase.includes('أرز') || lowercase.includes('rice')) return { category: 'rice', categoryAr: 'أرز' };
+  if (lowercase.includes('زيت') || lowercase.includes('oil')) return { category: 'oils', categoryAr: 'زيوت' };
+  if (lowercase.includes('دقيق') || lowercase.includes('flour') || lowercase.includes('مكرونة') || lowercase.includes('pasta') || lowercase.includes('شاي') || lowercase.includes('tea')) return { category: 'foodstuffs', categoryAr: 'غذائيات' };
+  return { category: 'other', categoryAr: 'أخرى' };
+}
+
+// -------------------------------------------------------------------------
+// Seed Function
+// -------------------------------------------------------------------------
+export async function seedDatabaseIfEmpty() {
+  try {
+    // 1. Seed Config (whatsapp and general)
+    const whatsappSnap = await getDoc(doc(db, 'config', 'whatsapp'));
+    if (!whatsappSnap.exists()) {
+      await setDoc(doc(db, 'config', 'whatsapp'), {
+        salesPhone1: '+249 91 234 5678',
+        salesPhone2: '+249 92 345 6789',
+        supportPhone: '+249 93 456 7890',
+        emergencyPhone: '+249 94 567 8901',
+        waLink: 'https://wa.me/249912345678',
+        groupLink: 'https://chat.whatsapp.com/BadalGroup',
+        channelLink: 'https://whatsapp.com/channel/0029VaBadal',
+        defaultMessage: 'مرحباً، أريد الاستفسار عن المنتجات والأسعار المتوفرة. شكراً لكم.'
       });
     }
+
+    const generalSnap = await getDoc(doc(db, 'config', 'general'));
+    if (!generalSnap.exists()) {
+      await setDoc(doc(db, 'config', 'general'), { currentFrancRate: 5900 });
+    }
+
+    // 2. Seed Admin Users
+    const adminSnap = await getDocs(collection(db, 'adminUsers'));
+    if (adminSnap.empty) {
+      const fullAdminPass = await hashString('badal2026');
+      const editorPass = await hashString('editor2026');
+      const managerPass = await hashString('rate2026');
+
+      const initialAdmins: AdminUser[] = [
+        { id: 'admin1', name: 'مدير النظام الكامل', email: 'admin@badal.com', role: 'admin_full', hashedPassword: fullAdminPass, createdAt: Date.now(), updatedAt: Date.now() },
+        { id: 'admin2', name: 'محرر السلع والمنتجات', email: 'editor@badal.com', role: 'product_editor', hashedPassword: editorPass, createdAt: Date.now(), updatedAt: Date.now() },
+        { id: 'admin3', name: 'مسؤول أسعار الصرف', email: 'rate@badal.com', role: 'currency_manager', hashedPassword: managerPass, createdAt: Date.now(), updatedAt: Date.now() },
+      ];
+
+      for (const admin of initialAdmins) {
+        await setDoc(doc(db, 'adminUsers', admin.id), admin);
+      }
+    }
+
+    // 3. Seed Suppliers
+    const suppliersSnap = await getDocs(collection(db, 'suppliers'));
+    let defaultSupplierId1 = 'supp-taqwa';
+    let defaultSupplierId2 = 'supp-sudani';
+    if (suppliersSnap.empty) {
+      const initialSuppliers: Supplier[] = [
+        { id: defaultSupplierId1, name: 'مجمع التقوى التجاري للأغذية', contactInfo: { phone: '+249912000001', email: 'taqwa@example.com', address: 'الخرطوم - السوق المحلي' }, status: 'active', createdBy: 'admin1', createdAt: Date.now(), updatedAt: Date.now() },
+        { id: defaultSupplierId2, name: 'شركة الموزع السوداني المحدودة', contactInfo: { phone: '+249123000002', email: 'dist@example.com', address: 'أم درمان - المنطقة الصناعية' }, status: 'active', createdBy: 'admin1', createdAt: Date.now(), updatedAt: Date.now() }
+      ];
+      for (const sup of initialSuppliers) {
+        await setDoc(doc(db, 'suppliers', sup.id), sup);
+      }
+    }
+
+    // 4. Seed Products (New Schema format)
+    const productsSnap = await getDocs(collection(db, 'products'));
+    if (productsSnap.empty) {
+      const initialProducts: SchemaProduct[] = [
+        { id: 'sugar', name: 'سكر كنانة مستورد فاخر', description: 'سكر نقي ناصع البياض سريع الذوبان مستورد من أجود المزارع العالمية.', basePrice: 4000, images: [], supplierIds: [defaultSupplierId1], status: 'active', createdBy: 'admin1', createdAt: Date.now(), updatedAt: Date.now(), unit: 'كيس ١٠ كجم' },
+        { id: 'flour', name: 'دقيق الخيرات فاخر', description: 'دقيق قمح ممتاز متعدد الاستعمالات للمخبوزات والحلويات الراقية.', basePrice: 3500, images: [], supplierIds: [defaultSupplierId1], status: 'active', createdBy: 'admin1', createdAt: Date.now(), updatedAt: Date.now(), unit: 'علبة ١ كجم' },
+        { id: 'rice', name: 'أرز بسمتي درجة أولى', description: 'أرز بسمتي هندي طويل الحبة ذو نكهة ورائحة عطرية زكية.', basePrice: 5500, images: [], supplierIds: [defaultSupplierId2], status: 'active', createdBy: 'admin1', createdAt: Date.now(), updatedAt: Date.now(), unit: 'جوال ٥ كجم' },
+        { id: 'oil', name: 'زيت صباح نقي مكرر', description: 'زيت نباتي نقي مكرر وخفيف ومناسب لجميع أنواع الطبخ والقلي.', basePrice: 3000, images: [], supplierIds: [defaultSupplierId2], status: 'active', createdBy: 'admin1', createdAt: Date.now(), updatedAt: Date.now(), unit: 'زجاجة ١.٥ لتر' },
+      ];
+      for (const prod of initialProducts) {
+        await setDoc(doc(db, 'products', prod.id), prod);
+      }
+    }
+
+    // 5. Seed Currency Rates
+    const ratesSnap = await getDocs(collection(db, 'currencyRates'));
+    if (ratesSnap.empty) {
+      const initialRates: CurrencyRate[] = [
+        { id: 'rate-xaf', currencyCode: 'XAF', rateToBase: 5900, lastUpdated: Date.now(), updatedBy: 'admin1' },
+        { id: 'rate-usd', currencyCode: 'USDT', rateToBase: 3200, lastUpdated: Date.now(), updatedBy: 'admin1' },
+        { id: 'rate-egp', currencyCode: 'EGP', rateToBase: 65, lastUpdated: Date.now(), updatedBy: 'admin1' },
+        { id: 'rate-ngn', currencyCode: 'NGN', rateToBase: 2500, lastUpdated: Date.now(), updatedBy: 'admin1' },
+      ];
+      for (const r of initialRates) {
+        await setDoc(doc(db, 'currencyRates', r.id), r);
+      }
+    } else {
+      // Database already has some rates, let's clean up obsolete ones and ensure the target ones are present
+      const validCodes = ['XAF', 'USD', 'USDT', 'EGP', 'NGN'];
+      const currentRatesSnap = await getDocs(collection(db, 'currencyRates'));
+      for (const d of currentRatesSnap.docs) {
+        const data = d.data() as CurrencyRate;
+        if (!data.currencyCode || !validCodes.includes(data.currencyCode)) {
+          await deleteDoc(doc(db, 'currencyRates', d.id));
+        }
+      }
+
+      // Ensure NGN is added
+      const ngnCheck = await getDoc(doc(db, 'currencyRates', 'rate-ngn'));
+      if (!ngnCheck.exists()) {
+        await setDoc(doc(db, 'currencyRates', 'rate-ngn'), {
+          id: 'rate-ngn',
+          currencyCode: 'NGN',
+          rateToBase: 2500,
+          lastUpdated: Date.now(),
+          updatedBy: 'admin1'
+        });
+      }
+
+      // Ensure USD is mapped to USDT currency code
+      const usdCheck = await getDoc(doc(db, 'currencyRates', 'rate-usd'));
+      if (usdCheck.exists()) {
+        const usdData = usdCheck.data() as CurrencyRate;
+        if (usdData.currencyCode !== 'USDT') {
+          await setDoc(doc(db, 'currencyRates', 'rate-usd'), {
+            id: 'rate-usd',
+            currencyCode: 'USDT',
+            rateToBase: usdData.rateToBase || 3200,
+            lastUpdated: Date.now(),
+            updatedBy: usdData.updatedBy || 'admin1'
+          });
+        }
+      } else {
+        await setDoc(doc(db, 'currencyRates', 'rate-usd'), {
+          id: 'rate-usd',
+          currencyCode: 'USDT',
+          rateToBase: 3200,
+          lastUpdated: Date.now(),
+          updatedBy: 'admin1'
+        });
+      }
+    }
+
+    // 6. Seed Alerts
+    const alertsSnap = await getDocs(collection(db, 'alerts'));
+    if (alertsSnap.empty) {
+      const initialAlerts: SystemAlert[] = [
+        { id: 'alert-1', title: 'تحديث سعر الصرف', text: 'تم تحديث سعر الفرنك التشادي الآن في السوق الموازي ليكون 5900 ج.س.', time: 'منذ دقيقة', unread: true, createdAt: Date.now() - 60000 },
+        { id: 'alert-2', title: 'توفر كمية جديدة', text: 'تم توفير كميات إدارية إضافية من منتج السكر المستورد بجودة ممتازة.', time: 'منذ ساعة', unread: true, createdAt: Date.now() - 3600000 },
+      ];
+      for (const alert of initialAlerts) {
+        await setDoc(doc(db, 'alerts', alert.id), alert);
+      }
+    }
+
+    // 7. Seed Orders
+    const ordersSnap = await getDocs(collection(db, 'orders'));
+    if (ordersSnap.empty) {
+      const initialOrders: Order[] = [
+        { id: 'order-1', productName: 'سكر كنانة مستورد فاخر', price: '4,000', unit: 'كيس ١٠ كجم', timestamp: '١٠:١٥ ص اليوم', status: 'completed', customerName: 'أحمد التاجر', customerPhone: '+249912345678', notes: 'يرجى التوصيل للمستودع', createdAt: Date.now() - 7200000 },
+        { id: 'order-2', productName: 'أرز بسمتي درجة أولى', price: '5,500', unit: 'جوال ٥ كجم', timestamp: 'منذ ١٥ دقيقة', status: 'pending', customerName: 'فاطمة صالح', customerPhone: '+249912000010', notes: 'الدفع عند الاستلام', createdAt: Date.now() - 900000 }
+      ];
+      for (const order of initialOrders) {
+        await setDoc(doc(db, 'orders', order.id), order);
+      }
+    }
+
+    console.log("🔥 Firestore database populated and seeded successfully!");
+  } catch (error) {
+    console.error("Firestore database seeding failed:", error);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Subscriptions (with mapped objects where necessary for backward compatibility)
+// -------------------------------------------------------------------------
+
+export function subscribeCurrencies(onUpdate: (currencies: Currency[]) => void) {
+  const q = collection(db, 'currencyRates');
+  return onSnapshot(q, (snapshot) => {
+    const list: Currency[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() as CurrencyRate;
+      const code = data.currencyCode || 'USD';
+      const meta = CURRENCY_METADATA[code] || { name: code, symbol: code, flag: '🏳️', country: '', trend: 'stable' };
+      list.push({
+        id: doc.id,
+        name: meta.name,
+        code,
+        symbol: meta.symbol,
+        price: data.rateToBase || 0,
+        lastUpdated: data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString('ar-EG') : 'الآن',
+        flag: meta.flag,
+        trend: meta.trend,
+        country: meta.country
+      });
+    });
+    // Ensure franc rate is at the top or order them
     onUpdate(list);
-  }, (err) => {
-    console.error('Currencies RTDB subscription error:', err);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'currencyRates');
   });
 }
 
 export function subscribeProducts(onUpdate: (products: Product[]) => void) {
-  const productsRef = ref(db, 'products');
-  return onValue(productsRef, (snapshot) => {
+  const q = collection(db, 'products');
+  return onSnapshot(q, (snapshot) => {
     const list: Product[] = [];
-    if (snapshot.exists()) {
-      snapshot.forEach(childSnap => {
-        list.push(childSnap.val() as Product);
+    snapshot.forEach((doc) => {
+      const data = doc.data() as SchemaProduct;
+      const catInfo = getCategory(data.name);
+      list.push({
+        id: doc.id,
+        name: data.name,
+        price: data.basePrice || 0,
+        currencySymbol: 'فرنك',
+        category: catInfo.category,
+        categoryAr: catInfo.categoryAr,
+        imageUrl: data.images && data.images.length > 0 ? data.images[0] : '',
+        isAvailable: data.status === 'active',
+        unit: data.unit || 'جوال ٥٠ كجم',
+        whatsappMessage: `طلب شراء ${data.name}`,
+        description: data.description || '',
+        supplierIds: data.supplierIds || []
       });
-    }
+    });
     onUpdate(list);
-  }, (err) => {
-    console.error('Products RTDB subscription error:', err);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'products');
   });
 }
 
 export function subscribeOrders(onUpdate: (orders: Order[]) => void) {
-  const ordersRef = ref(db, 'orders');
-  return onValue(ordersRef, (snapshot) => {
+  const q = collection(db, 'orders');
+  return onSnapshot(q, (snapshot) => {
     const list: Order[] = [];
-    if (snapshot.exists()) {
-      snapshot.forEach(childSnap => {
-        list.push(childSnap.val() as Order);
+    snapshot.forEach((doc) => {
+      const data = doc.data() as Order;
+      list.push({
+        ...data,
+        id: doc.id
       });
-    }
-    // Sort descending by creation timestamp
-    list.sort((a, b) => {
-      const aTime = (a as any).createdAt || 0;
-      const bTime = (b as any).createdAt || 0;
-      return bTime - aTime;
     });
+    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     onUpdate(list);
-  }, (err) => {
-    console.error('Orders RTDB subscription error:', err);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'orders');
   });
 }
 
 export function subscribeWhatsAppConfig(onUpdate: (config: WhatsAppConfig) => void) {
-  const whatsappRef = ref(db, 'config/whatsapp');
-  return onValue(whatsappRef, (snapshot) => {
-    if (snapshot.exists()) {
-      onUpdate(snapshot.val() as WhatsAppConfig);
+  return onSnapshot(doc(db, 'config', 'whatsapp'), (docSnap) => {
+    if (docSnap.exists()) {
+      onUpdate({
+        ...(docSnap.data() as WhatsAppConfig),
+        // fallback links
+        waLink: docSnap.data()?.waLink || 'https://wa.me/249912345678'
+      });
     }
-  }, (err) => {
-    console.error('WhatsApp config RTDB subscription error:', err);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'config/whatsapp');
   });
 }
 
 export function subscribeGeneralConfig(onUpdate: (francRate: number) => void) {
-  const generalRef = ref(db, 'config/general');
-  return onValue(generalRef, (snapshot) => {
-    if (snapshot.exists()) {
-      onUpdate((snapshot.val() as any).currentFrancRate || 5900);
+  return onSnapshot(doc(db, 'config', 'general'), (docSnap) => {
+    if (docSnap.exists()) {
+      onUpdate(docSnap.data()?.currentFrancRate || 5900);
     }
-  }, (err) => {
-    console.error('General config RTDB subscription error:', err);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'config/general');
   });
 }
 
 export function subscribeSystemAlerts(onUpdate: (alerts: SystemAlert[]) => void) {
-  const alertsRef = ref(db, 'alerts');
-  return onValue(alertsRef, (snapshot) => {
+  const q = collection(db, 'alerts');
+  return onSnapshot(q, (snapshot) => {
     const list: SystemAlert[] = [];
-    if (snapshot.exists()) {
-      snapshot.forEach(childSnap => {
-        list.push(childSnap.val() as SystemAlert);
+    snapshot.forEach((doc) => {
+      const data = doc.data() as SystemAlert;
+      list.push({
+        ...data,
+        id: doc.id
       });
-    }
-    // Sort descending by creation timestamp
+    });
     list.sort((a, b) => b.createdAt - a.createdAt);
     onUpdate(list);
-  }, (err) => {
-    console.error('System alerts RTDB subscription error:', err);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'alerts');
   });
 }
 
-// Database mutations
+// -------------------------------------------------------------------------
+// NEW Subscriptions for Admin-Only Collections
+// -------------------------------------------------------------------------
+
+export function subscribeAdminUsers(onUpdate: (users: AdminUser[]) => void) {
+  return onSnapshot(collection(db, 'adminUsers'), (snapshot) => {
+    const list: AdminUser[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() as AdminUser;
+      list.push({
+        ...data,
+        id: doc.id
+      });
+    });
+    onUpdate(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'adminUsers');
+  });
+}
+
+export function subscribeSuppliers(onUpdate: (suppliers: Supplier[]) => void) {
+  return onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+    const list: Supplier[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() as Supplier;
+      list.push({
+        ...data,
+        id: doc.id
+      });
+    });
+    onUpdate(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'suppliers');
+  });
+}
+
+export function subscribeSchemaProducts(onUpdate: (products: SchemaProduct[]) => void) {
+  return onSnapshot(collection(db, 'products'), (snapshot) => {
+    const list: SchemaProduct[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() as SchemaProduct;
+      list.push({
+        ...data,
+        id: doc.id
+      });
+    });
+    onUpdate(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'products');
+  });
+}
+
+export function subscribeCurrencyRates(onUpdate: (rates: CurrencyRate[]) => void) {
+  return onSnapshot(collection(db, 'currencyRates'), (snapshot) => {
+    const list: CurrencyRate[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() as CurrencyRate;
+      list.push({
+        ...data,
+        id: doc.id
+      });
+    });
+    onUpdate(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, 'currencyRates');
+  });
+}
+
+// -------------------------------------------------------------------------
+// Mutations / Writes conforming to handleFirestoreError
+// -------------------------------------------------------------------------
 
 export async function updateCurrencyInDb(currency: Currency) {
-  await set(ref(db, `currencies/${currency.id}`), currency);
+  // Map back to currencyRates collection
+  try {
+    const docId = currency.id.startsWith('rate-') ? currency.id : `rate-${currency.id}`;
+    await setDoc(doc(db, 'currencyRates', docId), {
+      id: docId,
+      currencyCode: currency.code,
+      rateToBase: currency.price,
+      lastUpdated: Date.now(),
+      updatedBy: 'system'
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `currencyRates/${currency.id}`);
+  }
 }
 
 export async function deleteCurrencyInDb(id: string) {
-  await remove(ref(db, `currencies/${id}`));
+  try {
+    const docId = id.startsWith('rate-') ? id : `rate-${id}`;
+    await deleteDoc(doc(db, 'currencyRates', docId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `currencyRates/${id}`);
+  }
 }
 
 export async function updateProductInDb(product: Product) {
-  await set(ref(db, `products/${product.id}`), product);
+  // Map back to products collection
+  try {
+    await setDoc(doc(db, 'products', product.id), sanitizeDbData({
+      id: product.id,
+      name: product.name,
+      basePrice: product.price,
+      description: product.description || '',
+      images: product.imageUrl ? [product.imageUrl] : [],
+      status: product.isAvailable ? 'active' : 'inactive',
+      supplierIds: product.supplierIds || [],
+      unit: product.unit || 'جوال ٥٠ كجم',
+      updatedAt: Date.now()
+    }), { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `products/${product.id}`);
+  }
 }
 
 export async function deleteProductInDb(id: string) {
-  await remove(ref(db, `products/${id}`));
+  try {
+    await deleteDoc(doc(db, 'products', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+  }
 }
 
 export async function addOrderToDb(order: Order) {
-  await set(ref(db, `orders/${order.id}`), {
-    ...order,
-    createdAt: Date.now()
-  });
+  try {
+    await setDoc(doc(db, 'orders', order.id), {
+      ...order,
+      createdAt: Date.now()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `orders/${order.id}`);
+  }
 }
 
 export async function updateOrderInDb(order: Order) {
-  await set(ref(db, `orders/${order.id}`), order);
+  try {
+    await setDoc(doc(db, 'orders', order.id), order, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `orders/${order.id}`);
+  }
 }
 
 export async function deleteOrderInDb(id: string) {
-  await remove(ref(db, `orders/${id}`));
+  try {
+    await deleteDoc(doc(db, 'orders', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
+  }
 }
 
 export async function updateWhatsAppConfigInDb(config: WhatsAppConfig) {
-  await set(ref(db, 'config/whatsapp'), config);
+  try {
+    await setDoc(doc(db, 'config', 'whatsapp'), config);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'config/whatsapp');
+  }
 }
 
 export async function updateGeneralConfigInDb(rate: number) {
-  await set(ref(db, 'config/general'), { currentFrancRate: rate });
+  try {
+    await setDoc(doc(db, 'config', 'general'), { currentFrancRate: rate });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'config/general');
+  }
 }
 
 export async function addSystemAlertToDb(alert: SystemAlert) {
-  await set(ref(db, `alerts/${alert.id}`), alert);
+  try {
+    await setDoc(doc(db, 'alerts', alert.id), alert);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `alerts/${alert.id}`);
+  }
 }
 
 export async function deleteSystemAlertInDb(id: string) {
-  await remove(ref(db, `alerts/${id}`));
+  try {
+    await deleteDoc(doc(db, 'alerts', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `alerts/${id}`);
+  }
+}
+
+// -------------------------------------------------------------------------
+// NEW Pure admin mutations conforming to user's specification
+// -------------------------------------------------------------------------
+
+export async function addAdminUser(user: AdminUser) {
+  try {
+    await setDoc(doc(db, 'adminUsers', user.id), {
+      ...user,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `adminUsers/${user.id}`);
+  }
+}
+
+export async function updateAdminUser(user: AdminUser) {
+  try {
+    await setDoc(doc(db, 'adminUsers', user.id), {
+      ...user,
+      updatedAt: Date.now()
+    }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `adminUsers/${user.id}`);
+  }
+}
+
+export async function deleteAdminUser(id: string) {
+  try {
+    await deleteDoc(doc(db, 'adminUsers', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `adminUsers/${id}`);
+  }
+}
+
+export async function addSupplier(sup: Supplier) {
+  try {
+    await setDoc(doc(db, 'suppliers', sup.id), {
+      ...sup,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `suppliers/${sup.id}`);
+  }
+}
+
+export async function updateSupplier(sup: Supplier) {
+  try {
+    await setDoc(doc(db, 'suppliers', sup.id), {
+      ...sup,
+      updatedAt: Date.now()
+    }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `suppliers/${sup.id}`);
+  }
+}
+
+export async function deleteSupplier(id: string) {
+  try {
+    await deleteDoc(doc(db, 'suppliers', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `suppliers/${id}`);
+  }
+}
+
+export async function addSchemaProduct(product: SchemaProduct) {
+  try {
+    await setDoc(doc(db, 'products', product.id), sanitizeDbData({
+      ...product,
+      status: product.status || 'draft',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `products/${product.id}`);
+  }
+}
+
+export async function updateSchemaProduct(product: SchemaProduct) {
+  try {
+    await setDoc(doc(db, 'products', product.id), sanitizeDbData({
+      ...product,
+      status: product.status || 'draft',
+      updatedAt: Date.now()
+    }), { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `products/${product.id}`);
+  }
+}
+
+export async function deleteSchemaProduct(id: string) {
+  try {
+    await deleteDoc(doc(db, 'products', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+  }
+}
+
+export async function addCurrencyRate(rate: CurrencyRate) {
+  try {
+    await setDoc(doc(db, 'currencyRates', rate.id), sanitizeDbData({
+      ...rate,
+      lastUpdated: Date.now()
+    }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `currencyRates/${rate.id}`);
+  }
+}
+
+export async function updateCurrencyRate(rate: CurrencyRate) {
+  try {
+    await setDoc(doc(db, 'currencyRates', rate.id), sanitizeDbData({
+      ...rate,
+      lastUpdated: Date.now()
+    }), { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `currencyRates/${rate.id}`);
+  }
+}
+
+export async function deleteCurrencyRate(id: string) {
+  try {
+    await deleteDoc(doc(db, 'currencyRates', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `currencyRates/${id}`);
+  }
 }

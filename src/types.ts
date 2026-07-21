@@ -28,6 +28,56 @@ export interface Product {
   unit: string;
   whatsappMessage: string;
   description?: string;
+  supplierIds?: string[];
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin_full' | 'product_editor' | 'currency_manager';
+  hashedPassword?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  assignedCurrency?: string; // e.g. currency code like 'USD', 'EGP' or 'all'
+  assignedProduct?: string;  // e.g. category like 'sugar', 'oils' or product ID or 'all'
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contactInfo: {
+    phone: string;
+    email: string;
+    address: string;
+  };
+  status: 'active' | 'inactive';
+  createdBy?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface SchemaProduct {
+  id: string;
+  name: string;
+  description?: string;
+  basePrice: number;
+  images: string[];
+  supplierIds: string[];
+  status: 'active' | 'inactive' | 'draft';
+  createdBy?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  unit?: string;
+  category?: 'all' | 'foodstuffs' | 'oils' | 'sugar' | 'rice' | 'other';
+}
+
+export interface CurrencyRate {
+  id: string;
+  currencyCode: string;
+  rateToBase: number;
+  lastUpdated?: number;
+  updatedBy?: string;
 }
 
 export type ScreenId = 'splash' | 'onboarding' | 'home' | 'products' | 'prices' | 'settings';
@@ -60,6 +110,7 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   notes?: string;
+  createdAt?: number;
 }
 
 export interface SystemAlert {

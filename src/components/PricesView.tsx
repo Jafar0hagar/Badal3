@@ -25,7 +25,7 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
   const [searchQuery, setSearchQuery] = useState('');
 
   const emojiMap: Record<string, string> = {
-    'TD': '🇹🇩', 'US': '🇺🇸', 'EU': '🇪🇺', 'SA': '🇸🇦', 'GB': '🇬🇧', 'EG': '🇪🇬', 'AE': '🇦🇪', 'KW': '🇰🇼'
+    'TD': '🇹🇩', 'US': '🇺🇸', 'USDT': '🇺🇸', 'EG': '🇪🇬', 'NGN': '🇳🇬', 'EGP': '🇪🇬'
   };
 
   const formatActualTime = (id: string, customLastUpdated?: string) => {
@@ -38,38 +38,45 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
     const now = new Date();
     let minutesAgo = 3;
     const cleanId = id.toLowerCase();
-    if (cleanId === 'usd' || cleanId === '2') minutesAgo = 7;
-    if (cleanId === 'eur' || cleanId === '3') minutesAgo = 14;
-    if (cleanId === 'sar' || cleanId === '4') minutesAgo = 4;
-    if (cleanId === 'gbp' || cleanId === '5') minutesAgo = 25;
+    if (cleanId === 'usd' || cleanId === 'usdt' || cleanId === '2') minutesAgo = 7;
     if (cleanId === 'egp' || cleanId === '6') minutesAgo = 42;
-    if (cleanId === 'aed' || cleanId === '7') minutesAgo = 9;
-    if (cleanId === 'kwd' || cleanId === '8') minutesAgo = 31;
+    if (cleanId === 'ngn' || cleanId === '9') minutesAgo = 11;
 
     const updateTime = new Date(now.getTime() - minutesAgo * 60 * 1000);
     const timeString = updateTime.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
     return `آخر تحديث: اليوم، الساعة ${timeString}`;
   };
 
-  // Currencies list matching exactly the screenshot names and details
-  const currencies: Currency[] = currenciesProp ? currenciesProp.map(c => ({
-    id: c.id,
-    name: c.name,
-    code: c.code,
-    flag: emojiMap[c.flag] || c.flag || '🏳️',
-    rate: c.id === 'xaf' ? currentFrancRate : c.price,
-    trend: c.trend,
-    lastUpdated: formatActualTime(c.id, c.lastUpdated)
-  })) : [
-    { id: '1', name: 'الفرنك التشادي', code: 'XAF', flag: '🇹🇩', rate: currentFrancRate, trend: 'stable', lastUpdated: formatActualTime('1') },
-    { id: '2', name: 'الدولار الأمريكي', code: 'USD', flag: '🇺🇸', rate: 3200, trend: 'up', lastUpdated: formatActualTime('2') },
-    { id: '3', name: 'اليورو', code: 'EUR', flag: '🇪🇺', rate: 3650, trend: 'down', lastUpdated: formatActualTime('3') },
-    { id: '4', name: 'الريال السعودي', code: 'SAR', flag: '🇸🇦', rate: 850, trend: 'up', lastUpdated: formatActualTime('4') },
-    { id: '5', name: 'الجنيه الإسترليني', code: 'GBP', flag: '🇬🇧', rate: 4200, trend: 'stable', lastUpdated: formatActualTime('5') },
-    { id: '6', name: 'الجنيه المصري', code: 'EGP', flag: '🇪🇬', rate: 65, trend: 'stable', lastUpdated: formatActualTime('6') },
-    { id: '7', name: 'الدرهم الإماراتي', code: 'AED', flag: '🇦🇪', rate: 870, trend: 'up', lastUpdated: formatActualTime('7') },
-    { id: '8', name: 'الدينار الكويتي', code: 'KWD', flag: '🇰🇼', rate: 10400, trend: 'down', lastUpdated: formatActualTime('8') },
-  ];
+  // Target currency codes we want to support
+  const targetCodes = ['XAF', 'USD', 'USDT', 'EGP', 'NGN'];
+
+  // Currencies list matching exactly the requested currencies and details
+  const currencies: Currency[] = currenciesProp 
+    ? currenciesProp
+        .filter(c => targetCodes.includes(c.code))
+        .map(c => {
+          let name = c.name;
+          if (c.code === 'USD' || c.code === 'USDT') name = 'تتر (USDT)';
+          else if (c.code === 'EGP') name = 'الجنيه المصري (مقابل السوداني)';
+          else if (c.code === 'NGN') name = 'النايرا النيجيرية (مقابل الفرنك)';
+          else if (c.code === 'XAF') name = 'الفرنك التشادي';
+
+          return {
+            id: c.id,
+            name,
+            code: c.code === 'USD' ? 'USDT' : c.code,
+            flag: emojiMap[c.flag] || c.flag || '🏳️',
+            rate: (c.id === 'xaf' || c.id === 'rate-xaf' || c.code === 'XAF') ? currentFrancRate : c.price,
+            trend: c.trend,
+            lastUpdated: formatActualTime(c.id, c.lastUpdated)
+          };
+        }) 
+    : [
+        { id: '1', name: 'الفرنك التشادي', code: 'XAF', flag: '🇹🇩', rate: currentFrancRate, trend: 'stable', lastUpdated: formatActualTime('1') },
+        { id: '2', name: 'تتر (USDT)', code: 'USDT', flag: '🇺🇸', rate: 3200, trend: 'up', lastUpdated: formatActualTime('2') },
+        { id: '6', name: 'الجنيه المصري (مقابل السوداني)', code: 'EGP', flag: '🇪🇬', rate: 65, trend: 'stable', lastUpdated: formatActualTime('6') },
+        { id: '9', name: 'النايرا النيجيرية (مقابل الفرنك)', code: 'NGN', flag: '🇳🇬', rate: 2500, trend: 'stable', lastUpdated: formatActualTime('9') },
+      ];
 
   // Filter currencies based on search input
   const filteredCurrencies = currencies.filter(c => 
@@ -77,8 +84,34 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
     c.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const [calcAmount, setCalcAmount] = useState<string>('1');
+  const [calcSelectedCurrencyId, setCalcSelectedCurrencyId] = useState<string>(() => {
+    return currencies[0]?.id || '1';
+  });
+  const [calcDirection, setCalcDirection] = useState<'toSDG' | 'fromSDG'>('toSDG');
+
+  const selectedCurrency = currencies.find(c => c.id === calcSelectedCurrencyId) || currencies[0];
+  const parsedAmount = parseFloat(calcAmount) || 0;
+  
+  let calcResult = 0;
+  if (selectedCurrency) {
+    if (selectedCurrency.code === 'NGN') {
+      if (calcDirection === 'toSDG') {
+        // NGN to Franc: (amount / rate) * 1000
+        calcResult = selectedCurrency.rate > 0 ? (parsedAmount / selectedCurrency.rate) * 1000 : 0;
+      } else {
+        // Franc to NGN: (amount / 1000) * rate
+        calcResult = (parsedAmount / 1000) * selectedCurrency.rate;
+      }
+    } else {
+      calcResult = calcDirection === 'toSDG' 
+        ? parsedAmount * selectedCurrency.rate 
+        : (selectedCurrency.rate > 0 ? parsedAmount / selectedCurrency.rate : 0);
+    }
+  }
+
   return (
-    <div className={`w-full h-full overflow-y-auto pb-8 font-sans relative transition-colors duration-200 ${
+    <div className={`w-full h-full overflow-y-auto pb-24 font-sans relative transition-colors duration-200 ${
       isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-[#FAF7F0] text-stone-800'
     }`} dir="rtl">
       
@@ -125,6 +158,112 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
           <Search className="w-4 h-4 text-stone-400 absolute right-3.5 top-3.5" />
         </div>
 
+        {/* Interactive Currency Calculator */}
+        <div className={`rounded-2xl p-4 border transition-all duration-200 ${
+          isDarkMode 
+            ? 'bg-[#1C1811] border-[#FAF1D6]/10 text-stone-100 shadow-[0_4px_20px_rgba(0,0,0,0.4)]' 
+            : 'bg-white border-[#EBC173]/40 text-stone-800 shadow-[0_4px_20px_rgba(213,165,73,0.12)]'
+        }`}>
+          <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-stone-200/20">
+            <h3 className={`text-xs font-black font-cairo flex items-center gap-1.5 ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>
+              <span>🧮</span>
+              <span>حاسبة تحويل العملات المباشرة</span>
+            </h3>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCalcDirection('toSDG')}
+                className={`px-3 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer ${
+                  calcDirection === 'toSDG'
+                    ? (isDarkMode ? 'bg-[#D5A549] text-stone-950 font-bold' : 'bg-[#850F1D] text-white font-bold')
+                    : (isDarkMode ? 'bg-stone-900 text-stone-400 hover:text-stone-300' : 'bg-stone-100 text-stone-500 hover:bg-stone-200')
+                }`}
+              >
+                {selectedCurrency?.code === 'NGN' ? 'إلى الفرنك' : 'إلى ج.س'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCalcDirection('fromSDG')}
+                className={`px-3 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer ${
+                  calcDirection === 'fromSDG'
+                    ? (isDarkMode ? 'bg-[#D5A549] text-stone-950 font-bold' : 'bg-[#850F1D] text-white font-bold')
+                    : (isDarkMode ? 'bg-stone-900 text-stone-400 hover:text-stone-300' : 'bg-stone-100 text-stone-500 hover:bg-stone-200')
+                }`}
+              >
+                {selectedCurrency?.code === 'NGN' ? 'من الفرنك' : 'من ج.س'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-3 items-end">
+            {/* Amount input */}
+            <div className="col-span-5 space-y-1">
+              <label className="text-[10px] font-bold text-stone-400 block font-tajawal">المبلغ</label>
+              <input
+                type="number"
+                min="0"
+                value={calcAmount}
+                onChange={(e) => setCalcAmount(e.target.value)}
+                className={`w-full border rounded-xl py-2 px-3 text-xs font-black text-center focus:outline-hidden transition-all ${
+                  isDarkMode 
+                    ? 'bg-stone-900 border-[#D5A549]/20 text-amber-100 focus:ring-1 focus:ring-[#D5A549]' 
+                    : 'bg-stone-50 border-stone-200 text-stone-800 focus:ring-1 focus:ring-[#850F1D]'
+                }`}
+              />
+            </div>
+
+            {/* Currency selector */}
+            <div className="col-span-7 space-y-1">
+              <label className="text-[10px] font-bold text-stone-400 block font-tajawal">العملة المقابلة</label>
+              <select
+                value={calcSelectedCurrencyId}
+                onChange={(e) => setCalcSelectedCurrencyId(e.target.value)}
+                className={`w-full border rounded-xl py-2 px-3 text-xs font-black focus:outline-hidden transition-all ${
+                  isDarkMode 
+                    ? 'bg-stone-900 border-[#D5A549]/20 text-amber-100 focus:ring-1 focus:ring-[#D5A549]' 
+                    : 'bg-stone-50 border-stone-200 text-stone-800 focus:ring-1 focus:ring-[#850F1D]'
+                }`}
+              >
+                {currencies.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.flag} {c.code === 'XAF' ? 'ألف فرنك تشادي' : c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Result Card */}
+          <div className={`mt-4 p-3 rounded-xl border flex items-center justify-between transition-colors ${
+            isDarkMode 
+              ? 'bg-[#2A2318]/40 border-[#FAF1D6]/10 text-amber-200' 
+              : 'bg-gradient-to-r from-amber-50 to-amber-100/40 border-[#EBC173]/30 text-stone-800'
+          }`}>
+            <div className="space-y-0.5">
+              <span className="text-[9px] font-extrabold text-stone-400 font-tajawal">النتيجة التقريبية للصرف</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-xl font-black ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>
+                  {calcResult.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </span>
+                <span className="text-[9px] font-bold text-stone-400 font-tajawal">
+                  {selectedCurrency?.code === 'NGN'
+                    ? (calcDirection === 'toSDG' ? 'فرنك تشادي' : 'نايرا نيجيرية')
+                    : (calcDirection === 'toSDG' ? 'جنيه سوداني' : selectedCurrency?.code || '')}
+                </span>
+              </div>
+            </div>
+            
+            <div className="text-[10px] font-bold text-stone-400 text-left font-tajawal flex flex-col items-end">
+              <span>سعر الصرف المعتمد</span>
+              <span className={`font-black font-mono text-xs ${isDarkMode ? 'text-amber-300' : 'text-[#850F1D]'}`}>
+                {selectedCurrency?.code === 'NGN'
+                  ? `١,٠٠٠ فرنك = ${selectedCurrency.rate.toLocaleString()} ₦`
+                  : `${selectedCurrency ? selectedCurrency.rate.toLocaleString() : '0'} ج.س`}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Currencies List */}
         <div className="space-y-3">
           {filteredCurrencies.map((currency) => (
@@ -156,9 +295,13 @@ export default function PricesView({ currentFrancRate, currencies: currenciesPro
                 <div className="space-y-0.5">
                   <div className="flex items-baseline justify-end gap-1">
                     <span className={`font-black text-base leading-none ${isDarkMode ? 'text-red-400 font-extrabold' : 'text-[#850F1D]'}`}>{currency.rate.toLocaleString()}</span>
-                    <span className={`text-[9px] font-bold font-tajawal ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>ج.س</span>
+                    <span className={`text-[9px] font-bold font-tajawal ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>
+                      {currency.code === 'NGN' ? 'نايرا' : 'ج.س'}
+                    </span>
                   </div>
-                  <span className={`text-[9px] font-black ${isDarkMode ? 'text-stone-500' : 'text-stone-400'}`}>{currency.code} / ١</span>
+                  <span className={`text-[9px] font-black ${isDarkMode ? 'text-stone-500' : 'text-stone-400'}`}>
+                    {currency.code === 'NGN' ? 'لكل ١,٠٠٠ فرنك' : `${currency.code} / ١`}
+                  </span>
                 </div>
 
                 {/* Trend Arrows matching screenshot */}

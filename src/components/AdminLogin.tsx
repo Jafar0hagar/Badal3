@@ -14,9 +14,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import BadalLogo from './BadalLogo';
+import { AdminUser } from '../types';
+import { db, hashString } from '../utils/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 interface AdminLoginProps {
-  onLoginSuccess: (rememberDevice: boolean) => void;
+  onLoginSuccess: (rememberDevice: boolean, user: AdminUser) => void;
   onGoBack: () => void;
 }
 
@@ -46,15 +49,6 @@ export default function AdminLogin({ onLoginSuccess, onGoBack }: AdminLoginProps
     return () => clearInterval(interval);
   }, []);
 
-  // Helper to hash string to SHA-256
-  const hashString = async (str: string): Promise<string> => {
-    const msgBuffer = new TextEncoder().encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -67,49 +61,35 @@ export default function AdminLogin({ onLoginSuccess, onGoBack }: AdminLoginProps
         return;
       }
 
-      const emailHash = await hashString(email.toLowerCase().trim());
-      const passwordHash = await hashString(password);
+      const inputPasswordHash = await hashString(password);
 
-      // Pre-calculated SHA-256 hashes for high security (prevents raw text credentials storage)
-      // admin@badal.com: ba90a19adf46a653166d0b9970aba946d15b98d99e67f1366d26bd175df84b69
-      // zamzamhajer03@gmail.com: c4a45ce37b715694a1d48c08ef82046bc8d89e02319ef5bc289b439c36142750
-      // admin: c7ad44cbad762a5da0a452f9e854fdc1e0e6932f4a56959934dd0240d02d0e2c
-      const ALLOWED_EMAIL_HASHES = [
-        'ba90a19adf46a653166d0b9970aba946d15b98d99e67f1366d26bd175df84b69',
-        'c4a45ce37b715694a1d48c08ef82046bc8d89e02319ef5bc289b439c36142750',
-        'c7ad44cbad762a5da0a452f9e854fdc1e0e6932f4a56959934dd0240d02d0e2c'
-      ];
-
-      // badal2026: 636608867bd86125d2cb851e39f2b9f75d263de876f4047d9ecc6a9bd7cdd27f
-      // admin: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
-      const ALLOWED_PASS_HASHES = [
-        '636608867bd86125d2cb851e39f2b9f75d263de876f4047d9ecc6a9bd7cdd27f',
-        '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'
-      ];
+      // Fetch admin users from Firestore
+      const adminUsersCol = collection(db, 'adminUsers');
+      const querySnapshot = await getDocs(adminUsersCol);
+      const docs = querySnapshot.docs.map(d => d.data() as AdminUser);
+      const matchedUser = docs.find(u => u.email && u.email.toLowerCase().trim() === email.toLowerCase().trim()) || null;
 
       // Anti-bruteforce delay
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const isAuthorizedEmail = ALLOWED_EMAIL_HASHES.includes(emailHash);
-      const isAuthorizedPassword = ALLOWED_PASS_HASHES.includes(passwordHash);
-
-      if (!isAuthorizedEmail) {
+      if (!matchedUser) {
         setError('البريد الإلكتروني هذا غير مسجل كمسؤول نظام.');
         setIsLoading(false);
         return;
       }
 
-      if (!isAuthorizedPassword) {
+      if (matchedUser.hashedPassword !== inputPasswordHash) {
         setError('كلمة المرور المدخلة غير صحيحة. يرجى التأكد وإعادة المحاولة.');
         setIsLoading(false);
         return;
       }
 
-      // Successful login simulation
+      // Successful login
       setIsLoading(false);
       setIsSuccess(true);
+      const userObj = matchedUser;
       setTimeout(() => {
-        onLoginSuccess(rememberDevice);
+        onLoginSuccess(rememberDevice, userObj);
       }, 1000);
     } catch (err) {
       setError('حدث خطأ فني أثناء التحقق من التشفير والأمان المتقدم.');

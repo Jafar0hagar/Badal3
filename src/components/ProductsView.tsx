@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ShoppingBag, MessageSquare, ShoppingCart, Filter, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { SafeImage } from './SafeImage';
 import { 
   SugarIllustration, 
   FlourIllustration, 
@@ -10,7 +11,7 @@ import {
   PastaIllustration
 } from './ProductIllustrations';
 
-import { Product as SharedProduct } from '../types';
+import { Product as SharedProduct, Currency } from '../types';
 
 interface Product {
   id: string;
@@ -31,11 +32,94 @@ interface ProductsViewProps {
   products?: SharedProduct[];
   onBack?: () => void;
   isDarkMode?: boolean;
+  baseCurrency?: string;
+  currentFrancRate?: number;
+  currencies?: Currency[];
 }
 
-export default function ProductsView({ onOpenWhatsApp, products: productsProp, onBack, isDarkMode = false }: ProductsViewProps) {
+export default function ProductsView({ 
+  onOpenWhatsApp, 
+  products: productsProp, 
+  onBack, 
+  isDarkMode = false,
+  baseCurrency = 'الفرنك التشادي - ج.س',
+  currentFrancRate = 5900,
+  currencies = []
+}: ProductsViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // Dynamic currency conversion logic
+  const activeCurrencyInfo = React.useMemo(() => {
+    let code = 'XAF';
+    if (baseCurrency && (baseCurrency.includes('الدولار') || baseCurrency.includes('USDT'))) code = 'USDT';
+    else if (baseCurrency && baseCurrency.includes('النايرا')) code = 'NGN';
+    else if (baseCurrency && baseCurrency.includes('المصري')) code = 'EGP';
+
+    const fallbackMap: Record<string, { id: string; code: string; name: string; flag: string; price: number; unit: string }> = {
+      XAF: { id: 'rate-xaf', code: 'XAF', name: 'الفرنك التشادي', flag: '🇹🇩', price: currentFrancRate || 5900, unit: 'ألف فرنك' },
+      USDT: { id: 'rate-usd', code: 'USDT', name: 'تتر (USDT)', flag: '🇺🇸', price: 3200, unit: 'تتر واحد' },
+      NGN: { id: 'rate-ngn', code: 'NGN', name: 'النايرا النيجيرية', flag: '🇳🇬', price: 2500, unit: 'نايرا (مقابل الفرنك)' },
+      EGP: { id: 'rate-egp', code: 'EGP', name: 'الجنيه المصري', flag: '🇪🇬', price: 65, unit: 'جنيه مصري واحد' }
+    };
+
+    const found = currencies ? currencies.find(c => c.code === code || (code === 'USDT' && c.code === 'USD')) : null;
+    
+    let unit = 'ألف فرنك';
+    if (code === 'USDT') unit = 'تتر واحد';
+    else if (code === 'NGN') unit = 'ألف فرنك تشادي';
+    else if (code === 'EGP') unit = 'جنيه مصري واحد';
+
+    let flag = '🇹🇩';
+    if (code === 'USDT') flag = '🇺🇸';
+    else if (code === 'NGN') flag = '🇳🇬';
+    else if (code === 'EGP') flag = '🇪🇬';
+
+    const selectedFallback = fallbackMap[code] || fallbackMap['XAF'];
+
+    return {
+      id: found?.id || selectedFallback.id,
+      code,
+      name: found?.name || selectedFallback.name,
+      flag,
+      price: found ? found.price : selectedFallback.price,
+      unit
+    };
+  }, [baseCurrency, currencies, currentFrancRate]);
+
+  const convertPrice = (rawFcfaPrice: number) => {
+    const rate = currentFrancRate || 5900;
+    if (activeCurrencyInfo.code === 'XAF') {
+      return {
+        formatted: rawFcfaPrice.toLocaleString(),
+        symbol: 'فرنك'
+      };
+    } else if (activeCurrencyInfo.code === 'USDT') {
+      const priceInSdg = (rawFcfaPrice / 1000) * rate;
+      const converted = priceInSdg / activeCurrencyInfo.price;
+      return {
+        formatted: converted.toFixed(2),
+        symbol: 'تتر'
+      };
+    } else if (activeCurrencyInfo.code === 'EGP') {
+      const priceInSdg = (rawFcfaPrice / 1000) * rate;
+      const converted = priceInSdg / activeCurrencyInfo.price;
+      return {
+        formatted: converted.toLocaleString(undefined, { maximumFractionDigits: 1 }),
+        symbol: 'جنيه مصري'
+      };
+    } else if (activeCurrencyInfo.code === 'NGN') {
+      const converted = (rawFcfaPrice / 1000) * activeCurrencyInfo.price;
+      return {
+        formatted: converted.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+        symbol: 'نايرا'
+      };
+    }
+    return {
+      formatted: rawFcfaPrice.toLocaleString(),
+      symbol: 'فرنك'
+    };
+  };
 
   // Categories list matching screenshot and adding realistic segments
   const categories = [
@@ -57,84 +141,87 @@ export default function ProductsView({ onOpenWhatsApp, products: productsProp, o
   };
 
   // Realistic product items with gorgeous custom SVG illustrations
-  const products: Product[] = productsProp ? productsProp.map(p => ({
-    id: p.id,
-    name: `${p.name} (${p.unit})`,
-    category: p.category === 'foodstuffs' ? 'groceries' : (p.category as any),
-    categoryLabel: p.categoryAr || 'غذائيات',
-    price: p.price.toLocaleString(),
-    rawPrice: p.price,
-    available: p.isAvailable,
-    illustration: getIllustration(p.category, p.name),
-    imageUrl: p.imageUrl,
-    description: p.description,
-    currencySymbol: p.currencySymbol || 'فرنك'
-  })) : [
+  const products: Product[] = productsProp ? productsProp.map(p => {
+    const priceInfo = convertPrice(p.price);
+    return {
+      id: p.id,
+      name: `${p.name} (${p.unit})`,
+      category: p.category === 'foodstuffs' ? 'groceries' : (p.category as any),
+      categoryLabel: p.categoryAr || 'غذائيات',
+      price: priceInfo.formatted,
+      rawPrice: p.price,
+      available: p.isAvailable,
+      illustration: getIllustration(p.category, p.name),
+      imageUrl: p.imageUrl,
+      description: p.description,
+      currencySymbol: priceInfo.symbol
+    };
+  }) : [
     { 
       id: 'p1', 
       name: 'سكر مستورد فاخر (كيس ١٠ كجم)', 
       category: 'sugar',
       categoryLabel: 'سكر',
-      price: '4,000', 
+      price: convertPrice(4000).formatted, 
       rawPrice: 4000,
       available: true, 
       illustration: <SugarIllustration className="w-24 h-24" /> ,
-      currencySymbol: 'فرنك'
+      currencySymbol: convertPrice(4000).symbol
     },
     { 
       id: 'p2', 
       name: 'دقيق الخيرات فاخر (علبة ١ كجم)', 
       category: 'groceries', 
       categoryLabel: 'غذائيات',
-      price: '3,500', 
+      price: convertPrice(3500).formatted, 
       rawPrice: 3500,
       available: true, 
       illustration: <FlourIllustration className="w-24 h-24" /> ,
-      currencySymbol: 'فرنك'
+      currencySymbol: convertPrice(3500).symbol
     },
     { 
       id: 'p3', 
       name: 'أرز بسمتي درجة أولى (جوال ٥ كجم)', 
       category: 'rice', 
       categoryLabel: 'أرز',
-      price: '5,500', 
+      price: convertPrice(5500).formatted, 
       rawPrice: 5500,
       available: true, 
       illustration: <RiceIllustration className="w-24 h-24" /> ,
-      currencySymbol: 'فرنك'
+      currencySymbol: convertPrice(5500).symbol
     },
     { 
       id: 'p4', 
       name: 'زيت صباح نقي مكرر (زجاجة ١.٥ لتر)', 
       category: 'oil', 
       categoryLabel: 'زيوت',
-      price: '3,000', 
+      price: convertPrice(3000).formatted, 
       rawPrice: 3000,
       available: true, 
       illustration: <OilIllustration className="w-24 h-24" /> ,
-      currencySymbol: 'فرنك'
+      currencySymbol: convertPrice(3000).symbol
     },
     { 
       id: 'p5', 
       name: 'شاي الجزيرة الأخضر الفاخر (٢٥٠ غرام)', 
       category: 'tea', 
       categoryLabel: 'غذائيات',
-      price: '1,500', 
+      price: convertPrice(1500).formatted, 
       rawPrice: 1500,
       available: true, 
       illustration: <TeaIllustration className="w-24 h-24" /> ,
-      currencySymbol: 'فرنك'
+      currencySymbol: convertPrice(1500).symbol
     },
     { 
       id: 'p6', 
       name: 'مكرونة الوادي سريعة التحضير (٥٠٠ غرام)', 
       category: 'groceries', 
       categoryLabel: 'غذائيات',
-      price: '1,000', 
+      price: convertPrice(1000).formatted, 
       rawPrice: 1000,
       available: true, 
       illustration: <PastaIllustration className="w-24 h-24" /> ,
-      currencySymbol: 'فرنك'
+      currencySymbol: convertPrice(1000).symbol
     },
   ];
 
@@ -148,7 +235,7 @@ export default function ProductsView({ onOpenWhatsApp, products: productsProp, o
   });
 
   return (
-    <div className={`w-full h-full overflow-y-auto pb-8 font-sans transition-colors duration-200 ${
+    <div className={`w-full h-full overflow-y-auto pb-24 font-sans transition-colors duration-200 ${
       isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-[#FAF7F0] text-stone-800'
     }`} dir="rtl">
       
@@ -242,10 +329,9 @@ export default function ProductsView({ onOpenWhatsApp, products: productsProp, o
               {/* Illustration container */}
               <div className="w-24 h-24 mb-2 mt-4 group-hover:scale-105 transition-transform duration-200 flex items-center justify-center overflow-hidden">
                 {product.imageUrl && (product.imageUrl.startsWith('http') || product.imageUrl.startsWith('data:image')) ? (
-                  <img 
+                  <SafeImage 
                     src={product.imageUrl} 
                     alt={product.name} 
-                    referrerPolicy="no-referrer" 
                     className="max-w-full max-h-full object-contain rounded-lg" 
                   />
                 ) : (

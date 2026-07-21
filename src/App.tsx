@@ -4,7 +4,8 @@ import { Capacitor } from '@capacitor/core';
 import PhoneSimulator from './components/PhoneSimulator';
 import Dashboard from './components/Dashboard';
 import AdminLogin from './components/AdminLogin';
-import { Currency, Product, WhatsAppConfig, Order, SystemAlert } from './types';
+import BadalLogo from './components/BadalLogo';
+import { Currency, Product, WhatsAppConfig, Order, SystemAlert, AdminUser } from './types';
 import { 
   Bell, 
   Lock, 
@@ -65,6 +66,11 @@ export default function App() {
     return remembered || tempSession;
   });
 
+  const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
+    const cached = localStorage.getItem('currentAdmin') || sessionStorage.getItem('currentAdmin');
+    return cached ? JSON.parse(cached) : null;
+  });
+
   const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
     return window.location.pathname.startsWith('/admin') || 
            window.location.search.includes('admin') || 
@@ -73,32 +79,25 @@ export default function App() {
 
   // Database initialization & real-time snapshot subscription
   useEffect(() => {
-    let unsubCurrencies: () => void;
-    let unsubProducts: () => void;
-    let unsubOrders: () => void;
-    let unsubWhatsApp: () => void;
-    let unsubGeneral: () => void;
-    let unsubAlerts: () => void;
-
-    async function initDb() {
-      await seedDatabaseIfEmpty();
-      
-      unsubCurrencies = subscribeCurrencies(setCurrencies);
-      unsubProducts = subscribeProducts(setProducts);
-      unsubOrders = subscribeOrders((fetchedOrders) => {
-        setOrders(prev => {
-          if (fetchedOrders.length > prev.length && prev.length > 0) {
-            playNotificationSound(fetchedOrders.length, 'order_received');
-          }
-          return fetchedOrders;
-        });
+    // Seed database in the background if it is empty
+    seedDatabaseIfEmpty().catch(err => {
+      console.error('Error seeding database:', err);
+    });
+    
+    // Subscribe synchronously to ensure the returned cleanup function is immediately active and effective
+    const unsubCurrencies = subscribeCurrencies(setCurrencies);
+    const unsubProducts = subscribeProducts(setProducts);
+    const unsubOrders = subscribeOrders((fetchedOrders) => {
+      setOrders(prev => {
+        if (fetchedOrders.length > prev.length && prev.length > 0) {
+          playNotificationSound(fetchedOrders.length, 'order_received');
+        }
+        return fetchedOrders;
       });
-      unsubWhatsApp = subscribeWhatsAppConfig(setWhatsAppConfig);
-      unsubGeneral = subscribeGeneralConfig(setCurrentFrancRate);
-      unsubAlerts = subscribeSystemAlerts(setSystemAlerts);
-    }
-
-    initDb();
+    });
+    const unsubWhatsApp = subscribeWhatsAppConfig(setWhatsAppConfig);
+    const unsubGeneral = subscribeGeneralConfig(setCurrentFrancRate);
+    const unsubAlerts = subscribeSystemAlerts(setSystemAlerts);
 
     return () => {
       if (unsubCurrencies) unsubCurrencies();
@@ -128,12 +127,24 @@ export default function App() {
   // Manual rate updates simulation from simulator admin panel or direct dashboard edits
   const handleUpdateFrancRate = async (newRate: number) => {
     await updateGeneralConfigInDb(newRate);
-    const xafCurrency = currencies.find(c => c.id === 'xaf');
+    const xafCurrency = currencies.find(c => c.id === 'rate-xaf' || c.id === 'xaf' || c.code === 'XAF');
     if (xafCurrency) {
       await updateCurrencyInDb({
         ...xafCurrency,
         price: newRate,
         lastUpdated: 'الآن'
+      });
+    } else {
+      await updateCurrencyInDb({
+        id: 'rate-xaf',
+        code: 'XAF',
+        price: newRate,
+        name: 'الفرنك التشادي',
+        symbol: 'FCFA',
+        lastUpdated: 'الآن',
+        flag: 'TD',
+        trend: 'stable',
+        country: 'تشاد'
       });
     }
     playNotificationSound(undefined, 'price_updated');
@@ -207,12 +218,13 @@ export default function App() {
         <div className="min-h-screen bg-[#FAF7F0] text-stone-900 select-none overflow-x-hidden antialiased flex flex-col relative" dir={isRtl ? 'rtl' : 'ltr'}>
           <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-stone-200/50 shadow-xs px-4 md:px-8 py-3.5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-full bg-[#850F1D] flex items-center justify-center border border-[#850F1D]/10 shadow-md shrink-0">
-                <span className="text-white font-black text-lg leading-none">ب</span>
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[#FAF1D6] to-[#EBC173] flex items-center justify-center border border-[#D5A549]/30 shadow-md shrink-0 p-1">
+                <BadalLogo size={32} withTag={false} />
               </div>
               <div>
-                <h1 className="text-lg md:text-xl font-black text-[#850F1D] tracking-wide leading-none font-cairo">
-                  {language === 'ar' ? 'لوحة التحكم - بدل للخدمات' : 'Admin Console - Badal Services'}
+                <h1 className="text-lg md:text-xl font-black text-[#850F1D] tracking-wide leading-none font-cairo flex items-center gap-2">
+                  <span>بَدَلْ لإدارة العملات</span>
+                  <span className="text-[10px] bg-[#850F1D]/10 text-[#850F1D] px-2 py-0.5 rounded-full font-bold">لوحة التحكم السحابية</span>
                 </h1>
               </div>
             </div>
@@ -221,9 +233,12 @@ export default function App() {
                 <button
                   onClick={() => {
                     setIsAdminAuthenticated(false);
+                    setCurrentAdmin(null);
                     localStorage.removeItem('isAdminAuthenticated');
                     localStorage.removeItem('rememberDevice');
+                    localStorage.removeItem('currentAdmin');
                     sessionStorage.removeItem('isAdminAuthenticated');
+                    sessionStorage.removeItem('currentAdmin');
                     setIsAdminMode(false);
                     triggerToast(language === 'ar' ? '🔒 تم تسجيل الخروج من لوحة التحكم بنجاح' : '🔒 Successfully logged out from admin console');
                   }}
@@ -255,17 +270,21 @@ export default function App() {
                 whatsAppConfig={whatsAppConfig}
                 onUpdateWhatsAppConfig={handleUpdateWhatsAppConfig}
                 systemAlerts={systemAlerts}
+                currentAdmin={currentAdmin}
               />
             ) : (
               <div className="max-w-md mx-auto pt-10">
                 <AdminLogin 
-                  onLoginSuccess={(rememberDevice) => {
+                  onLoginSuccess={(rememberDevice, user) => {
                     setIsAdminAuthenticated(true);
+                    setCurrentAdmin(user);
                     if (rememberDevice) {
                       localStorage.setItem('isAdminAuthenticated', 'true');
                       localStorage.setItem('rememberDevice', 'true');
+                      localStorage.setItem('currentAdmin', JSON.stringify(user));
                     } else {
                       sessionStorage.setItem('isAdminAuthenticated', 'true');
+                      sessionStorage.setItem('currentAdmin', JSON.stringify(user));
                     }
                     triggerToast(language === 'ar' ? '🔐 تم التحقق من الموثوقية والدخول بنجاح' : '🔐 Access authorized successfully');
                   }}

@@ -116,7 +116,7 @@ export default function SettingsView({
   };
 
   return (
-    <div className={`w-full h-full overflow-y-auto pb-8 font-sans relative transition-colors duration-200 ${isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-[#FAF7F0] text-stone-800'}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`w-full h-full overflow-y-auto pb-24 font-sans relative transition-colors duration-200 ${isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-[#FAF7F0] text-stone-800'}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
       
       {/* Header with Golden Currency Card Theme */}
       <div className={`sticky top-0 z-10 px-5 py-4 flex items-center justify-between border-b transition-all duration-200 ${
@@ -470,9 +470,9 @@ export default function SettingsView({
                   <div className="space-y-2">
                     {[
                       'الفرنك التشادي - ج.س',
-                      'الدولار الأمريكي - ج.س',
-                      'اليورو - ج.س',
-                      'الريال السعودي - ج.س'
+                      'تتر (USDT) - ج.س',
+                      'النايرا النيجيرية - مقابل الفرنك',
+                      'الجنيه المصري - مقابل السوداني'
                     ].map((curr) => (
                       <button 
                         key={curr}

@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, RefreshCw, Copy, Check, MessageSquare, ShoppingBag, TrendingUp, HelpCircle, Phone, ArrowLeft, Clock, CheckSquare, ShieldAlert } from 'lucide-react';
 import BadalLogo from './BadalLogo';
+import { SafeImage } from './SafeImage';
 import { SugarIllustration, FlourIllustration } from './ProductIllustrations';
 import { playNotificationSound } from '../utils/audio';
 
-import { Product as SharedProduct, WhatsAppConfig, SystemAlert } from '../types';
+import { Product as SharedProduct, WhatsAppConfig, SystemAlert, Currency } from '../types';
 
 interface HomeViewProps {
   onNavigate: (tab: string) => void;
@@ -19,7 +20,10 @@ interface HomeViewProps {
   systemAlerts?: SystemAlert[];
   readAlertIds?: string[];
   onMarkAlertAsRead?: (id: string) => void;
+  onMarkAlertsAsRead?: (ids: string[]) => void;
   isDarkMode?: boolean;
+  baseCurrency?: string;
+  currencies?: Currency[];
 }
 
 export default function HomeView({ 
@@ -34,7 +38,10 @@ export default function HomeView({
   systemAlerts = [],
   readAlertIds = [],
   onMarkAlertAsRead,
-  isDarkMode = false
+  onMarkAlertsAsRead,
+  isDarkMode = false,
+  baseCurrency = 'الفرنك التشادي - ج.س',
+  currencies = []
 }: HomeViewProps) {
   const [copied, setCopied] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -87,12 +94,24 @@ export default function HomeView({
   };
 
   const handleMarkAllAsRead = () => {
-    notifications.forEach(n => {
-      if (!readAlertIds.includes(n.id) && onMarkAlertAsRead) {
-        onMarkAlertAsRead(n.id);
+    const unreadIds = notifications
+      .filter(n => !readAlertIds.includes(n.id))
+      .map(n => n.id);
+    
+    if (unreadIds.length > 0) {
+      if (onMarkAlertsAsRead) {
+        onMarkAlertsAsRead(unreadIds);
+      } else if (onMarkAlertAsRead) {
+        unreadIds.forEach(id => onMarkAlertAsRead(id));
       }
-    });
+    }
   };
+
+  useEffect(() => {
+    if (showNotifications) {
+      handleMarkAllAsRead();
+    }
+  }, [showNotifications, notifications]);
 
   // Real-time currency update time based on actual system/browser clock
   const [lastUpdateTime, setLastUpdateTime] = useState<string>(() => {
@@ -106,8 +125,46 @@ export default function HomeView({
     }
   }, [isUpdatingRate]);
 
+  // Find active currency from currencies list based on Settings selection
+  const activeCurrencyInfo = React.useMemo(() => {
+    let code = 'XAF';
+    if (baseCurrency && (baseCurrency.includes('الدولار') || baseCurrency.includes('USDT'))) code = 'USDT';
+    else if (baseCurrency && baseCurrency.includes('النايرا')) code = 'NGN';
+    else if (baseCurrency && baseCurrency.includes('المصري')) code = 'EGP';
+
+    const fallbackMap: Record<string, { id: string; code: string; name: string; flag: string; price: number; unit: string }> = {
+      XAF: { id: 'rate-xaf', code: 'XAF', name: 'الفرنك التشادي', flag: '🇹🇩', price: currentFrancRate || 5900, unit: 'ألف فرنك' },
+      USDT: { id: 'rate-usd', code: 'USDT', name: 'تتر (USDT)', flag: '🇺🇸', price: 3200, unit: 'تتر واحد' },
+      NGN: { id: 'rate-ngn', code: 'NGN', name: 'النايرا النيجيرية', flag: '🇳🇬', price: 2500, unit: 'نايرا (مقابل الفرنك)' },
+      EGP: { id: 'rate-egp', code: 'EGP', name: 'الجنيه المصري', flag: '🇪🇬', price: 65, unit: 'جنيه مصري واحد' }
+    };
+
+    const found = currencies ? currencies.find(c => c.code === code || (code === 'USDT' && c.code === 'USD')) : null;
+    
+    let unit = 'ألف فرنك';
+    if (code === 'USDT') unit = 'تتر واحد';
+    else if (code === 'NGN') unit = 'ألف فرنك تشادي';
+    else if (code === 'EGP') unit = 'جنيه مصري واحد';
+
+    let flag = '🇹🇩';
+    if (code === 'USDT') flag = '🇺🇸';
+    else if (code === 'NGN') flag = '🇳🇬';
+    else if (code === 'EGP') flag = '🇪🇬';
+
+    const selectedFallback = fallbackMap[code] || fallbackMap['XAF'];
+
+    return {
+      id: found?.id || selectedFallback.id,
+      code,
+      name: found?.name || selectedFallback.name,
+      flag,
+      price: found ? found.price : selectedFallback.price,
+      unit
+    };
+  }, [baseCurrency, currencies, currentFrancRate]);
+
   const handleCopyPrice = () => {
-    navigator.clipboard.writeText(`${currentFrancRate} ج.س`);
+    navigator.clipboard.writeText(`${activeCurrencyInfo.price} ج.س`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -121,7 +178,7 @@ export default function HomeView({
   });
 
   return (
-    <div className={`w-full h-full overflow-y-auto pb-8 font-sans relative select-none transition-colors duration-200 ${
+    <div className={`w-full h-full overflow-y-auto pb-24 font-sans relative select-none transition-colors duration-200 ${
       isDarkMode ? 'bg-[#12100C] text-[#FAF7F0]' : 'bg-[#FAF7F0] text-stone-800'
     }`} dir="rtl">
       
@@ -195,11 +252,11 @@ export default function HomeView({
           <div className="relative flex justify-between items-start z-10">
             {/* Currency Name & Flag */}
             <div className="flex items-center gap-2">
-              {/* Chad Flag */}
-              <span className="text-3xl shadow-sm filter drop-shadow-xs leading-none">🇹🇩</span>
+              {/* Dynamic Flag */}
+              <span className="text-3xl shadow-sm filter drop-shadow-xs leading-none">{activeCurrencyInfo.flag}</span>
               <div className="space-y-0.5">
                 <span className="text-xs text-[#5D461D] font-bold font-tajawal">العملة النشطة</span>
-                <h3 className="text-sm font-black text-[#3D2C0E]">الفرنك التشادي</h3>
+                <h3 className="text-sm font-black text-[#3D2C0E]">{activeCurrencyInfo.name}</h3>
               </div>
             </div>
 
@@ -233,10 +290,12 @@ export default function HomeView({
                   transition={{ type: 'spring', stiffness: 200, damping: 15 }}
                   className="flex flex-col items-center justify-center"
                 >
-                  <span className="text-xs font-bold text-[#5D461D] font-tajawal bg-amber-50/60 border border-amber-200/20 px-2.5 py-0.5 rounded-md mb-1.5 shadow-2xs">ألف فرنك</span>
+                  <span className="text-xs font-bold text-[#5D461D] font-tajawal bg-amber-50/60 border border-amber-200/20 px-2.5 py-0.5 rounded-md mb-1.5 shadow-2xs">{activeCurrencyInfo.unit}</span>
                   <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-5xl font-black text-[#850F1D] tracking-tight">{currentFrancRate}</span>
-                    <span className="text-sm font-bold text-[#5D461D] font-tajawal">ج.س / ١</span>
+                    <span className="text-5xl font-black text-[#850F1D] tracking-tight">{activeCurrencyInfo.price?.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-[#5D461D] font-tajawal">
+                      {activeCurrencyInfo.code === 'NGN' ? 'نايرا' : 'ج.س / ١'}
+                    </span>
                   </div>
                 </motion.div>
               )}
@@ -372,8 +431,16 @@ export default function HomeView({
                 ? 'bg-[#1C1811] border-[#FAF1D6]/10 text-stone-100 shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.15)] hover:border-[#EBC173]/30' 
                 : 'bg-white border-[#EBC173]/40 text-stone-800 shadow-[0_4px_16px_rgba(213,165,73,0.15)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.22)] hover:border-[#EBC173]/60'
             }`}>
-              <div className="w-24 h-24 mb-2 group-hover:scale-105 transition-transform duration-200">
-                <SugarIllustration />
+              <div className="w-24 h-24 mb-2 group-hover:scale-105 transition-transform duration-200 flex items-center justify-center overflow-hidden">
+                {sugarProduct?.imageUrl && (sugarProduct.imageUrl.startsWith('http') || sugarProduct.imageUrl.startsWith('data:image')) ? (
+                  <SafeImage 
+                    src={sugarProduct.imageUrl} 
+                    alt={sugarName} 
+                    className="max-w-full max-h-full object-contain rounded-lg" 
+                  />
+                ) : (
+                  <SugarIllustration />
+                )}
               </div>
               <h4 className={`font-extrabold text-xs ${isDarkMode ? 'text-amber-100' : 'text-stone-800'}`}>{sugarName}</h4>
               <p className={`font-black text-xs mt-1 ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>{sugarPrice} {sugarCurrency}</p>
@@ -397,8 +464,16 @@ export default function HomeView({
                 ? 'bg-[#1C1811] border-[#FAF1D6]/10 text-stone-100 shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.15)] hover:border-[#EBC173]/30' 
                 : 'bg-white border-[#EBC173]/40 text-stone-800 shadow-[0_4px_16px_rgba(213,165,73,0.15)] hover:shadow-[0_6px_20px_rgba(213,165,73,0.22)] hover:border-[#EBC173]/60'
             }`}>
-              <div className="w-24 h-24 mb-2 group-hover:scale-105 transition-transform duration-200">
-                <FlourIllustration />
+              <div className="w-24 h-24 mb-2 group-hover:scale-105 transition-transform duration-200 flex items-center justify-center overflow-hidden">
+                {flourProduct?.imageUrl && (flourProduct.imageUrl.startsWith('http') || flourProduct.imageUrl.startsWith('data:image')) ? (
+                  <SafeImage 
+                    src={flourProduct.imageUrl} 
+                    alt={flourName} 
+                    className="max-w-full max-h-full object-contain rounded-lg" 
+                  />
+                ) : (
+                  <FlourIllustration />
+                )}
               </div>
               <h4 className={`font-extrabold text-xs ${isDarkMode ? 'text-amber-100' : 'text-stone-800'}`}>{flourName}</h4>
               <p className={`font-black text-xs mt-1 ${isDarkMode ? 'text-amber-400' : 'text-[#850F1D]'}`}>{flourPrice} {flourCurrency}</p>
