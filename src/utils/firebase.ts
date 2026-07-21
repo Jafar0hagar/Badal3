@@ -139,7 +139,17 @@ export async function seedDatabaseIfEmpty() {
         waLink: 'https://wa.me/249912345678',
         groupLink: 'https://chat.whatsapp.com/BadalGroup',
         channelLink: 'https://whatsapp.com/channel/0029VaBadal',
-        defaultMessage: 'مرحباً، أريد الاستفسار عن المنتجات والأسعار المتوفرة. شكراً لكم.'
+        telegramLink: 'https://t.me/BadalExchange',
+        facebookLink: 'https://facebook.com/groups/badalsudan',
+        defaultMessage: 'مرحباً، أريد الاستفسار عن المنتجات والأسعار المتوفرة. شكراً لكم.',
+        communityTitle: 'مجتمعات بَدَلْ وقنوات الصرف المباشر',
+        communityDescription: 'انضم إلى مجتمعاتنا عبر الواتساب والتلغرام للحصول على آخر تحديثات الأسعار فوراً والواصل مع مكاتب الصرف',
+        communityLinks: [
+          { id: 'comm-1', title: 'مجتمع أسعار الصرف المباشر', description: 'قروب التبادلات والتسويات المباشرة', platform: 'whatsapp_group', url: 'https://chat.whatsapp.com/BadalGroup', badgeText: 'قروب الواتساب', isFeatured: true },
+          { id: 'comm-2', title: 'قناة بَدَلْ الرسمية للأسعار', description: 'قناة موثقة للبث الفوري لأسعار الصرف والتموين', platform: 'whatsapp_channel', url: 'https://whatsapp.com/channel/0029VaBadal', badgeText: 'قناة وتساب', isFeatured: true },
+          { id: 'comm-3', title: 'قناة التلغرام السريعة', description: 'تحديثات لحظية لسوق الصرف والعملات', platform: 'telegram', url: 'https://t.me/BadalExchange', badgeText: 'تلغرام', isFeatured: false },
+          { id: 'comm-4', title: 'مجتمع الفيسبوك التفاعلي', description: 'مناقشات وعروض التموين والصرف', platform: 'facebook', url: 'https://facebook.com/groups/badalsudan', badgeText: 'فيسبوك', isFeatured: false }
+        ]
       });
     }
 
@@ -156,9 +166,9 @@ export async function seedDatabaseIfEmpty() {
       const managerPass = await hashString('rate2026');
 
       const initialAdmins: AdminUser[] = [
-        { id: 'admin1', name: 'مدير النظام الكامل', email: 'admin@badal.com', role: 'admin_full', hashedPassword: fullAdminPass, createdAt: Date.now(), updatedAt: Date.now() },
-        { id: 'admin2', name: 'محرر السلع والمنتجات', email: 'editor@badal.com', role: 'product_editor', hashedPassword: editorPass, createdAt: Date.now(), updatedAt: Date.now() },
-        { id: 'admin3', name: 'مسؤول أسعار الصرف', email: 'rate@badal.com', role: 'currency_manager', hashedPassword: managerPass, createdAt: Date.now(), updatedAt: Date.now() },
+        { id: 'admin1', name: 'مدير النظام الكامل', email: 'admin@badal.com', role: 'admin_full', hashedPassword: fullAdminPass, whatsappPhone: '+249912345678', createdAt: Date.now(), updatedAt: Date.now() },
+        { id: 'admin2', name: 'محرر السلع والمنتجات', email: 'editor@badal.com', role: 'product_editor', hashedPassword: editorPass, whatsappPhone: '+249923456789', createdAt: Date.now(), updatedAt: Date.now() },
+        { id: 'admin3', name: 'مسؤول أسعار الصرف', email: 'rate@badal.com', role: 'currency_manager', hashedPassword: managerPass, whatsappPhone: '+249934567890', assignedCurrency: 'all', createdAt: Date.now(), updatedAt: Date.now() },
       ];
 
       for (const admin of initialAdmins) {
@@ -198,10 +208,10 @@ export async function seedDatabaseIfEmpty() {
     const ratesSnap = await getDocs(collection(db, 'currencyRates'));
     if (ratesSnap.empty) {
       const initialRates: CurrencyRate[] = [
-        { id: 'rate-xaf', currencyCode: 'XAF', rateToBase: 5900, lastUpdated: Date.now(), updatedBy: 'admin1' },
-        { id: 'rate-usd', currencyCode: 'USDT', rateToBase: 3200, lastUpdated: Date.now(), updatedBy: 'admin1' },
-        { id: 'rate-egp', currencyCode: 'EGP', rateToBase: 65, lastUpdated: Date.now(), updatedBy: 'admin1' },
-        { id: 'rate-ngn', currencyCode: 'NGN', rateToBase: 2500, lastUpdated: Date.now(), updatedBy: 'admin1' },
+        { id: 'rate-xaf', currencyCode: 'XAF', rateToBase: 5900, contactPhone: '+249912345678', assignedAdminId: 'admin3', officeName: 'مكتب تحويلات العاصمة والفرنك', lastUpdated: Date.now(), updatedBy: 'admin1' },
+        { id: 'rate-usd', currencyCode: 'USDT', rateToBase: 3200, contactPhone: '+249923456789', assignedAdminId: 'admin1', officeName: 'مكتب الكريبتو والتتر السريع', lastUpdated: Date.now(), updatedBy: 'admin1' },
+        { id: 'rate-egp', currencyCode: 'EGP', rateToBase: 65, contactPhone: '+249934567890', assignedAdminId: 'admin3', officeName: 'مكتب الصرف المصري والقاهرة', lastUpdated: Date.now(), updatedBy: 'admin1' },
+        { id: 'rate-ngn', currencyCode: 'NGN', rateToBase: 2500, contactPhone: '+249945678901', assignedAdminId: 'admin3', officeName: 'مكتب تحويلات النايرا والربط الإفريقي', lastUpdated: Date.now(), updatedBy: 'admin1' },
       ];
       for (const r of initialRates) {
         await setDoc(doc(db, 'currencyRates', r.id), r);
@@ -304,7 +314,9 @@ export function subscribeCurrencies(onUpdate: (currencies: Currency[]) => void) 
         lastUpdated: data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString('ar-EG') : 'الآن',
         flag: meta.flag,
         trend: meta.trend,
-        country: meta.country
+        country: meta.country,
+        contactPhone: data.contactPhone || '',
+        officeName: data.officeName || ''
       });
     });
     // Ensure franc rate is at the top or order them

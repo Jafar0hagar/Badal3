@@ -393,6 +393,7 @@ export default function PhoneSimulator({
                   currencies={currencies} 
                   onBack={() => setActiveScreen('home')}
                   isDarkMode={isDarkMode}
+                  whatsAppConfig={activeWaConfig}
                 />
               </motion.div>
             )}

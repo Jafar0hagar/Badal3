@@ -303,12 +303,12 @@ export default function HomeView({
           </div>
 
           {/* Inside Card Actions */}
-          <div className="relative flex gap-3 z-10">
+          <div className="relative flex gap-2.5 z-10">
             {/* Refresh Button */}
             <button
               onClick={onUpdateFrancRate}
               disabled={isUpdatingRate}
-              className={`flex-1 font-bold text-xs py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 font-bold text-[11px] py-1.5 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 isDarkMode 
                   ? 'bg-stone-950/80 hover:bg-stone-950 text-amber-200 border-[#D5A549]/20 shadow-xs' 
                   : 'bg-white hover:bg-[#FFFDF9] active:bg-[#F2EDE0] text-[#3D2C0E] border-[#DFB24F]/40 shadow-xs'
@@ -318,18 +318,26 @@ export default function HomeView({
               <span>تحديث</span>
             </button>
 
-            {/* Copy Price Button */}
-            <button
-              onClick={handleCopyPrice}
-              className={`flex-1 font-bold text-xs py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                isDarkMode 
-                  ? 'bg-stone-950/80 hover:bg-stone-950 text-amber-200 border-[#D5A549]/20 shadow-xs' 
-                  : 'bg-white hover:bg-[#FFFDF9] active:bg-[#F2EDE0] text-[#3D2C0E] border-[#DFB24F]/40 shadow-xs'
-              }`}
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#3D2C0E]" />}
-              <span>{copied ? 'تم النسخ!' : 'نسخ السعر'}</span>
-            </button>
+            {/* Direct WhatsApp Contact Button for Currency */}
+            {(() => {
+              const matchedCurr = currencies?.find(c => c.code === activeCurrencyInfo.code);
+              const targetPhone = matchedCurr?.contactPhone || whatsAppConfig?.salesPhone1 || '+249912345678';
+              const cleanPhone = targetPhone.replace(/[^0-9]/g, '');
+              const messageText = `مرحباً، أريد الاستفسار أو التحويل بالنسبة لعملة ${activeCurrencyInfo.name} بسعر الصرف المعتمد اليوم (${activeCurrencyInfo.price?.toLocaleString()}). شكراً لكم.`;
+              const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
+
+              return (
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 font-extrabold text-[11px] py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 fill-current" />
+                  <span>عبر الواتساب</span>
+                </a>
+              );
+            })()}
           </div>
 
         </div>

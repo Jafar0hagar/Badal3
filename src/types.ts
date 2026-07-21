@@ -14,6 +14,9 @@ export interface Currency {
   trend: 'up' | 'down' | 'stable';
   changeRate?: string;
   country: string;
+  contactPhone?: string;
+  assignedAdminName?: string;
+  officeName?: string;
 }
 
 export interface Product {
@@ -41,6 +44,7 @@ export interface AdminUser {
   updatedAt?: number;
   assignedCurrency?: string; // e.g. currency code like 'USD', 'EGP' or 'all'
   assignedProduct?: string;  // e.g. category like 'sugar', 'oils' or product ID or 'all'
+  whatsappPhone?: string;    // WhatsApp contact phone for this admin
 }
 
 export interface Supplier {
@@ -78,9 +82,23 @@ export interface CurrencyRate {
   rateToBase: number;
   lastUpdated?: number;
   updatedBy?: string;
+  contactPhone?: string;      // Specific WhatsApp phone number for this currency
+  assignedAdminId?: string;   // Assigned admin user ID
+  assignedSupplierId?: string;// Assigned exchange office or supplier ID
+  officeName?: string;        // Office or manager name e.g. "مكتب تحويلات العاصمة"
 }
 
 export type ScreenId = 'splash' | 'onboarding' | 'home' | 'products' | 'prices' | 'settings';
+
+export interface CommunityLink {
+  id: string;
+  title: string;
+  description?: string;
+  platform: 'whatsapp_group' | 'whatsapp_channel' | 'telegram' | 'facebook' | 'phone' | 'other';
+  url: string;
+  badgeText?: string;
+  isFeatured?: boolean;
+}
 
 export interface WhatsAppConfig {
   salesPhone1: string;
@@ -90,7 +108,12 @@ export interface WhatsAppConfig {
   waLink: string;
   groupLink: string;
   channelLink: string;
+  telegramLink?: string;
+  facebookLink?: string;
   defaultMessage: string;
+  communityTitle?: string;
+  communityDescription?: string;
+  communityLinks?: CommunityLink[];
 }
 
 export interface AppSettings {

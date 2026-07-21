@@ -23,7 +23,10 @@ import {
   FileText,
   DollarSign,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  Share2,
+  Globe,
+  MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import BadalLogo from './BadalLogo';
@@ -61,6 +64,7 @@ import {
   subscribeCurrencyRates,
   addSystemAlertToDb,
   deleteSystemAlertInDb,
+  updateWhatsAppConfigInDb,
   hashString
 } from '../utils/firebase';
 
@@ -86,6 +90,8 @@ export default function Dashboard({
   onUpdateOrders,
   onUpdateFrancRate,
   currentFrancRate,
+  whatsAppConfig,
+  onUpdateWhatsAppConfig,
   systemAlerts = [],
   currentAdmin
 }: DashboardProps) {
@@ -99,7 +105,7 @@ export default function Dashboard({
   };
 
   // Active Screen / Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'admins' | 'suppliers' | 'products' | 'currencies' | 'orders' | 'alerts'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'admins' | 'suppliers' | 'products' | 'currencies' | 'orders' | 'alerts' | 'community'>('overview');
 
   // Real-time Firestore state variables for admin portal
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -146,7 +152,8 @@ export default function Dashboard({
     role: 'admin_full' | 'product_editor' | 'currency_manager';
     assignedCurrency: string;
     assignedProduct: string;
-  }>({ name: '', email: '', password: '', role: 'product_editor', assignedCurrency: 'all', assignedProduct: 'all' });
+    whatsappPhone: string;
+  }>({ name: '', email: '', password: '', role: 'product_editor', assignedCurrency: 'all', assignedProduct: 'all', whatsappPhone: '' });
 
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -182,7 +189,21 @@ export default function Dashboard({
 
   const [isAddingRate, setIsAddingRate] = useState(false);
   const [editingRate, setEditingRate] = useState<CurrencyRate | null>(null);
-  const [rateForm, setRateForm] = useState({ currencyCode: '', rateToBase: 0 });
+  const [rateForm, setRateForm] = useState<{
+    currencyCode: string;
+    rateToBase: number;
+    contactPhone: string;
+    officeName: string;
+    assignedAdminId: string;
+    assignedSupplierId: string;
+  }>({
+    currencyCode: '',
+    rateToBase: 0,
+    contactPhone: '',
+    officeName: '',
+    assignedAdminId: '',
+    assignedSupplierId: ''
+  });
   const [localFrancRate, setLocalFrancRate] = useState<number>(currentFrancRate || 5900);
 
   useEffect(() => {
@@ -193,6 +214,29 @@ export default function Dashboard({
 
   const [alertTitle, setAlertTitle] = useState('');
   const [alertText, setAlertText] = useState('');
+
+  // Community & WhatsApp Config states
+  const [waPhonesForm, setWaPhonesForm] = useState({
+    salesPhone1: whatsAppConfig?.salesPhone1 || '+249123456789',
+    salesPhone2: whatsAppConfig?.salesPhone2 || '+249987654321',
+    supportPhone: whatsAppConfig?.supportPhone || '+23566000000',
+  });
+
+  useEffect(() => {
+    if (whatsAppConfig) {
+      setWaPhonesForm({
+        salesPhone1: whatsAppConfig.salesPhone1 || '',
+        salesPhone2: whatsAppConfig.salesPhone2 || '',
+        supportPhone: whatsAppConfig.supportPhone || '',
+      });
+    }
+  }, [whatsAppConfig]);
+
+  const [newLinkTitle, setNewLinkTitle] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [newLinkDesc, setNewLinkDesc] = useState('');
+  const [newLinkPlatform, setNewLinkPlatform] = useState<'whatsapp_group' | 'whatsapp_channel' | 'telegram' | 'facebook' | 'phone' | 'other'>('whatsapp_group');
+  const [newLinkFeatured, setNewLinkFeatured] = useState(true);
 
   const liveAdmin = adminUsers.find(u => u.email === admin.email) || admin;
   const [simulatedRole, setSimulatedRole] = useState<'admin_full' | 'product_editor' | 'currency_manager' | null>(null);
@@ -257,12 +301,13 @@ export default function Dashboard({
           role: adminForm.role,
           assignedCurrency: adminForm.assignedCurrency,
           assignedProduct: adminForm.assignedProduct,
+          whatsappPhone: adminForm.whatsappPhone
         };
         if (adminForm.password) {
           updated.hashedPassword = await hashString(adminForm.password);
         }
         await updateAdminUser(updated);
-        showToast('✅ تم تحديث بيانات المشرف بنجاح');
+        showToast('✅ تم تحديث بيانات المشرف ورقم الواتساب بنجاح');
       } else {
         // Create flow
         if (!adminForm.password) {
@@ -279,12 +324,13 @@ export default function Dashboard({
           hashedPassword: passHash,
           assignedCurrency: adminForm.assignedCurrency,
           assignedProduct: adminForm.assignedProduct,
+          whatsappPhone: adminForm.whatsappPhone
         });
         showToast('✅ تم إنشاء المشرف الجديد بنجاح');
       }
       setIsAddingAdmin(false);
       setEditingAdmin(null);
-      setAdminForm({ name: '', email: '', password: '', role: 'product_editor', assignedCurrency: 'all', assignedProduct: 'all' });
+      setAdminForm({ name: '', email: '', password: '', role: 'product_editor', assignedCurrency: 'all', assignedProduct: 'all', whatsappPhone: '' });
     } catch (err) {
       showToast('❌ حدث خطأ أثناء الحفظ بقاعدة البيانات');
     }
@@ -459,17 +505,25 @@ export default function Dashboard({
           ...editingRate,
           currencyCode: codeUpper,
           rateToBase: Number(rateForm.rateToBase),
-          updatedBy: admin.id
+          updatedBy: admin.id,
+          contactPhone: rateForm.contactPhone,
+          officeName: rateForm.officeName,
+          assignedAdminId: rateForm.assignedAdminId,
+          assignedSupplierId: rateForm.assignedSupplierId
         });
-        showToast('✅ تم تحديث سعر صرف العملة بنجاح');
+        showToast('✅ تم تحديث سعر صرف العملة والربط بالمكتب/المشرف بنجاح');
       } else {
         await addCurrencyRate({
           id: docId,
           currencyCode: codeUpper,
           rateToBase: Number(rateForm.rateToBase),
-          updatedBy: admin.id
+          updatedBy: admin.id,
+          contactPhone: rateForm.contactPhone,
+          officeName: rateForm.officeName,
+          assignedAdminId: rateForm.assignedAdminId,
+          assignedSupplierId: rateForm.assignedSupplierId
         });
-        showToast('✅ تم إضافة العملة الجديدة لجدول الأسعار');
+        showToast('✅ تم إضافة العملة وربط مكتب التحويلات بنجاح');
       }
 
       // Sync Franc rate if editing XAF
@@ -479,7 +533,14 @@ export default function Dashboard({
 
       setIsAddingRate(false);
       setEditingRate(null);
-      setRateForm({ currencyCode: '', rateToBase: 0 });
+      setRateForm({
+        currencyCode: '',
+        rateToBase: 0,
+        contactPhone: '',
+        officeName: '',
+        assignedAdminId: '',
+        assignedSupplierId: ''
+      });
     } catch (err) {
       showToast('❌ فشل حفظ سعر الصرف السحابي');
     }
@@ -532,6 +593,106 @@ export default function Dashboard({
     if (!verifyPermission(['admin_full'])) return;
     await deleteSystemAlertInDb(id);
     showToast('🗑️ تم حذف وبث إلغاء التنبيه العاجل');
+  };
+
+  // 7. Community & WhatsApp Links Management
+  const handleSaveWaPhones = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['admin_full'])) return;
+    try {
+      const updatedConfig: WhatsAppConfig = {
+        salesPhone1: waPhonesForm.salesPhone1 || '+249123456789',
+        salesPhone2: waPhonesForm.salesPhone2 || '+249987654321',
+        supportPhone: waPhonesForm.supportPhone || '+23566000000',
+        emergencyPhone: whatsAppConfig?.emergencyPhone || '+249123456789',
+        waLink: whatsAppConfig?.waLink || 'https://wa.me/249123456789',
+        groupLink: whatsAppConfig?.groupLink || '',
+        channelLink: whatsAppConfig?.channelLink || '',
+        telegramLink: whatsAppConfig?.telegramLink || '',
+        facebookLink: whatsAppConfig?.facebookLink || '',
+        defaultMessage: whatsAppConfig?.defaultMessage || 'السلام عليكم، أرغب في استفسار تحويل مالي',
+        communityTitle: whatsAppConfig?.communityTitle || 'مجتمعات وقنوات بَدَلْ الرسمية',
+        communityDescription: whatsAppConfig?.communityDescription || 'انضم لمجموعات الواتساب وتليجرام لمتابعة التحديثات اللحظية لأسعار الصرف',
+        communityLinks: whatsAppConfig?.communityLinks || []
+      };
+      await updateWhatsAppConfigInDb(updatedConfig);
+      if (onUpdateWhatsAppConfig) onUpdateWhatsAppConfig(updatedConfig);
+      showToast('✅ تم حفظ أرقام التواصل الرئيسية بنجاح');
+    } catch (err) {
+      showToast('❌ حدث خطأ أثناء حفظ أرقام الواتساب');
+    }
+  };
+
+  const handleAddCommunityLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['admin_full'])) return;
+    if (!newLinkTitle || !newLinkUrl) {
+      showToast('⚠️ يرجى كتابة اسم مجتمع التواصل والرابط المطلوب');
+      return;
+    }
+    try {
+      const newLink = {
+        id: 'link-' + Math.random().toString(36).substring(2, 9),
+        title: newLinkTitle,
+        url: newLinkUrl,
+        description: newLinkDesc,
+        platform: newLinkPlatform,
+        isFeatured: newLinkFeatured
+      };
+      const currentLinks = whatsAppConfig?.communityLinks || [];
+      const updatedConfig: WhatsAppConfig = {
+        salesPhone1: waPhonesForm.salesPhone1 || whatsAppConfig?.salesPhone1 || '+249123456789',
+        salesPhone2: waPhonesForm.salesPhone2 || whatsAppConfig?.salesPhone2 || '',
+        supportPhone: waPhonesForm.supportPhone || whatsAppConfig?.supportPhone || '',
+        emergencyPhone: whatsAppConfig?.emergencyPhone || '+249123456789',
+        waLink: whatsAppConfig?.waLink || 'https://wa.me/249123456789',
+        groupLink: whatsAppConfig?.groupLink || '',
+        channelLink: whatsAppConfig?.channelLink || '',
+        telegramLink: whatsAppConfig?.telegramLink || '',
+        facebookLink: whatsAppConfig?.facebookLink || '',
+        defaultMessage: whatsAppConfig?.defaultMessage || 'السلام عليكم، أرغب في استفسار تحويل مالي',
+        communityTitle: whatsAppConfig?.communityTitle || 'مجتمعات وقنوات بَدَلْ الرسمية',
+        communityDescription: whatsAppConfig?.communityDescription || 'انضم لمجموعات الواتساب وتليجرام لمتابعة التحديثات اللحظية لأسعار الصرف',
+        communityLinks: [newLink, ...currentLinks]
+      };
+      await updateWhatsAppConfigInDb(updatedConfig);
+      if (onUpdateWhatsAppConfig) onUpdateWhatsAppConfig(updatedConfig);
+      setNewLinkTitle('');
+      setNewLinkUrl('');
+      setNewLinkDesc('');
+      showToast('✅ تم إضافة مجتمع / قناة التواصل بنجاح');
+    } catch (err) {
+      showToast('❌ حدث خطأ أثناء إضافة الرابط');
+    }
+  };
+
+  const handleDeleteCommunityLink = async (linkId: string) => {
+    if (!verifyPermission(['admin_full'])) return;
+    if (!confirm('هل أنت متأكد من حذف هذا الرابط؟')) return;
+    try {
+      const currentLinks = whatsAppConfig?.communityLinks || [];
+      const updatedLinks = currentLinks.filter(l => l.id !== linkId);
+      const updatedConfig: WhatsAppConfig = {
+        salesPhone1: waPhonesForm.salesPhone1 || whatsAppConfig?.salesPhone1 || '+249123456789',
+        salesPhone2: waPhonesForm.salesPhone2 || whatsAppConfig?.salesPhone2 || '',
+        supportPhone: waPhonesForm.supportPhone || whatsAppConfig?.supportPhone || '',
+        emergencyPhone: whatsAppConfig?.emergencyPhone || '+249123456789',
+        waLink: whatsAppConfig?.waLink || 'https://wa.me/249123456789',
+        groupLink: whatsAppConfig?.groupLink || '',
+        channelLink: whatsAppConfig?.channelLink || '',
+        telegramLink: whatsAppConfig?.telegramLink || '',
+        facebookLink: whatsAppConfig?.facebookLink || '',
+        defaultMessage: whatsAppConfig?.defaultMessage || 'السلام عليكم، أرغب في استفسار تحويل مالي',
+        communityTitle: whatsAppConfig?.communityTitle || 'مجتمعات وقنوات بَدَلْ الرسمية',
+        communityDescription: whatsAppConfig?.communityDescription || 'انضم لمجموعات الواتساب وتليجرام لمتابعة التحديثات اللحظية لأسعار الصرف',
+        communityLinks: updatedLinks
+      };
+      await updateWhatsAppConfigInDb(updatedConfig);
+      if (onUpdateWhatsAppConfig) onUpdateWhatsAppConfig(updatedConfig);
+      showToast('🗑️ تم حذف مجتمع التواصل بنجاح');
+    } catch (err) {
+      showToast('❌ فشل حذف رابط المجتمعات');
+    }
   };
 
   // Filter lists based on searches
@@ -779,6 +940,30 @@ export default function Dashboard({
             </div>
             {!hasFullAccess && <Lock className="w-3 h-3 text-stone-500" />}
           </button>
+
+          {/* Community Links Tab */}
+          <button
+            onClick={() => {
+              if (!hasFullAccess) {
+                showToast('🔒 غير مصرح لك بزيارة هذا التبويب');
+                return;
+              }
+              setActiveTab('community');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all ${
+              !hasFullAccess ? 'opacity-50' : ''
+            } ${
+              activeTab === 'community' 
+                ? 'bg-amber-500 text-stone-950 shadow-lg shadow-amber-500/15' 
+                : 'hover:bg-amber-500/10 text-stone-400 hover:text-stone-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Share2 className="w-4 h-4" />
+              <span>مجتمعات القنوات والتواصل</span>
+            </div>
+            {!hasFullAccess && <Lock className="w-3 h-3 text-stone-500" />}
+          </button>
         </nav>
 
         {/* Footer info inside sidebar */}
@@ -906,7 +1091,7 @@ export default function Dashboard({
                   <button
                     onClick={() => {
                       setEditingAdmin(null);
-                      setAdminForm({ name: '', email: '', password: '', role: 'product_editor', assignedCurrency: 'all', assignedProduct: 'all' });
+                      setAdminForm({ name: '', email: '', password: '', role: 'product_editor', assignedCurrency: 'all', assignedProduct: 'all', whatsappPhone: '' });
                       setIsAddingAdmin(true);
                     }}
                     className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-black rounded-xl transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-amber-500/10 cursor-pointer"
@@ -935,6 +1120,7 @@ export default function Dashboard({
                       <tr className="border-b border-stone-800 text-stone-400 font-bold">
                         <th className="py-3 px-2">الاسم</th>
                         <th className="py-3 px-2">البريد الإلكتروني</th>
+                        <th className="py-3 px-2">واتساب للتواصل</th>
                         <th className="py-3 px-2">الدور الإداري المفوّض</th>
                         <th className="py-3 px-2">التعيين / التخصيص</th>
                         <th className="py-3 px-2 text-left">العمليات والمحاسبة</th>
@@ -945,6 +1131,15 @@ export default function Dashboard({
                         <tr key={u.id} className="border-b border-stone-900/50 hover:bg-stone-900/30 transition-colors">
                           <td className="py-3.5 px-2 font-black text-stone-100">{u.name}</td>
                           <td className="py-3.5 px-2 font-mono text-stone-400">{u.email}</td>
+                          <td className="py-3.5 px-2 font-mono text-emerald-400 font-bold">
+                            {u.whatsappPhone ? (
+                              <span className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[10px]">
+                                🟢 {u.whatsappPhone}
+                              </span>
+                            ) : (
+                              <span className="text-stone-600 text-[10px]">غير مسجل</span>
+                            )}
+                          </td>
                           <td className="py-3.5 px-2">
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                               u.role === 'admin_full' 
@@ -992,7 +1187,8 @@ export default function Dashboard({
                                   password: '', 
                                   role: u.role || 'product_editor',
                                   assignedCurrency: u.assignedCurrency || 'all',
-                                  assignedProduct: u.assignedProduct || 'all'
+                                  assignedProduct: u.assignedProduct || 'all',
+                                  whatsappPhone: u.whatsappPhone || ''
                                 });
                                 setIsAddingAdmin(true);
                               }}
@@ -1267,7 +1463,7 @@ export default function Dashboard({
               <button
                 onClick={() => {
                   setEditingRate(null);
-                  setRateForm({ currencyCode: '', rateToBase: 0 });
+                  setRateForm({ currencyCode: '', rateToBase: 0, contactPhone: '', officeName: '', assignedAdminId: '', assignedSupplierId: '' });
                   setIsAddingRate(true);
                 }}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-black rounded-xl transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-amber-500/10 cursor-pointer"
@@ -1314,6 +1510,7 @@ export default function Dashboard({
                     <th className="py-3 px-2">العملة</th>
                     <th className="py-3 px-2">الرمز</th>
                     <th className="py-3 px-2">سعر الصرف ونوع الحساب</th>
+                    <th className="py-3 px-2">مكتب التحويلات والواتساب</th>
                     <th className="py-3 px-2 text-left">العمليات</th>
                   </tr>
                 </thead>
@@ -1342,6 +1539,9 @@ export default function Dashboard({
                       rateDescription = 'نايرا نيجيرية (لكل ١,٠٠٠ فرنك)';
                     }
 
+                    const assignedAdmin = adminUsers.find(u => u.id === rate.assignedAdminId);
+                    const phoneToDisplay = rate.contactPhone || assignedAdmin?.whatsappPhone || whatsAppConfig?.salesPhone1;
+
                     return (
                       <tr key={rate.id} className="border-b border-stone-900/50 hover:bg-stone-900/30 transition-colors">
                         <td className="py-3.5 px-2 font-bold text-stone-100">
@@ -1353,16 +1553,42 @@ export default function Dashboard({
                           <span className="font-black text-amber-400 text-sm ml-1">{rate.rateToBase?.toLocaleString()}</span>
                           <span className="text-[10px] text-stone-400 font-tajawal">{rateDescription}</span>
                         </td>
+                        <td className="py-3.5 px-2">
+                          <div className="flex flex-col gap-1 text-[11px]">
+                            {rate.officeName && (
+                              <span className="font-bold text-amber-200">{rate.officeName}</span>
+                            )}
+                            {phoneToDisplay ? (
+                              <a 
+                                href={`https://wa.me/${phoneToDisplay.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 font-mono text-emerald-400 hover:underline text-[10px]"
+                              >
+                                🟢 {phoneToDisplay}
+                              </a>
+                            ) : (
+                              <span className="text-stone-600 text-[10px]">افتراضي النظام</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-3.5 px-2 text-left space-x-2 space-x-reverse">
                           {canEditCurrency(code) ? (
                             <button
                               onClick={() => {
                                 setEditingRate(rate);
-                                setRateForm({ currencyCode: rate.currencyCode || '', rateToBase: rate.rateToBase || 0 });
+                                setRateForm({ 
+                                  currencyCode: rate.currencyCode || '', 
+                                  rateToBase: rate.rateToBase || 0,
+                                  contactPhone: rate.contactPhone || '',
+                                  officeName: rate.officeName || '',
+                                  assignedAdminId: rate.assignedAdminId || '',
+                                  assignedSupplierId: rate.assignedSupplierId || ''
+                                });
                                 setIsAddingRate(true);
                               }}
                               className="p-1.5 bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-300 rounded-lg transition-colors cursor-pointer"
-                              title="تعديل السعر"
+                              title="تعديل السعر والمكتب"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
@@ -1553,6 +1779,193 @@ export default function Dashboard({
           </div>
         )}
 
+        {/* ----------------- 7. Community & WhatsApp Links Tab ----------------- */}
+        {activeTab === 'community' && (
+          <div className="space-y-6">
+            <div className="pb-4 border-b border-stone-800">
+              <h2 className="text-lg font-black text-amber-200">إدارة أرقام الواتساب وروابط مجتمعات التواصل</h2>
+              <p className="text-[11px] text-stone-400 mt-1">تحديد الهواتف الرسمية لتطبيق بَدَلْ للخدمات وإدارة روابط المجموعات والقنوات المباشرة للزبائن</p>
+            </div>
+
+            {/* Section 1: Main WhatsApp Numbers */}
+            <div className="bg-stone-900/50 p-5 rounded-2xl border border-stone-800 space-y-4">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-xs font-bold text-amber-300">أرقام هواتف التواصل المركزية للنظام</h3>
+              </div>
+              <form onSubmit={handleSaveWaPhones} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] text-stone-400 font-bold">هاتف المبيعات والاستفسارات الأساسي</label>
+                  <input
+                    type="text"
+                    required
+                    value={waPhonesForm.salesPhone1}
+                    onChange={(e) => setWaPhonesForm({ ...waPhonesForm, salesPhone1: e.target.value })}
+                    className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 font-mono focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] text-stone-400 font-bold">هاتف الخدمة والمتابعة الاحتياطي</label>
+                  <input
+                    type="text"
+                    value={waPhonesForm.salesPhone2}
+                    onChange={(e) => setWaPhonesForm({ ...waPhonesForm, salesPhone2: e.target.value })}
+                    className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 font-mono focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] text-stone-400 font-bold">هاتف الدعم المباشر للبوت السريع</label>
+                  <input
+                    type="text"
+                    value={waPhonesForm.supportPhone}
+                    onChange={(e) => setWaPhonesForm({ ...waPhonesForm, supportPhone: e.target.value })}
+                    className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 font-mono focus:outline-none"
+                  />
+                </div>
+                <div className="md:col-span-3 text-left">
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-lg active:scale-95"
+                  >
+                    حفظ الهواتف المركزية
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Section 2: Community & Social Links */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Add New Link Form */}
+              <div className="bg-stone-900/50 p-5 rounded-2xl border border-stone-800 space-y-4 lg:col-span-1">
+                <div className="flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-xs font-bold text-amber-300">إضافة مجتمع أو قناة تواصل</h3>
+                </div>
+                <form onSubmit={handleAddCommunityLink} className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-stone-400 font-bold">اسم المجموعات / القناة</label>
+                    <input
+                      type="text"
+                      required
+                      value={newLinkTitle}
+                      onChange={(e) => setNewLinkTitle(e.target.value)}
+                      placeholder="مثال: قناة أسعار الصرف الرسمية"
+                      className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-stone-400 font-bold">الرابط الكامل (URL)</label>
+                    <input
+                      type="url"
+                      required
+                      value={newLinkUrl}
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      placeholder="https://chat.whatsapp.com/... أو t.me/..."
+                      className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-stone-400 font-bold">وصف فرعي توضيحي</label>
+                    <input
+                      type="text"
+                      value={newLinkDesc}
+                      onChange={(e) => setNewLinkDesc(e.target.value)}
+                      placeholder="تحديثات مستمرة وتداول آمن على مدار الساعة"
+                      className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-stone-400 font-bold">المنصة</label>
+                      <select
+                        value={newLinkPlatform}
+                        onChange={(e) => setNewLinkPlatform(e.target.value as any)}
+                        className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none"
+                      >
+                        <option value="whatsapp_group">مجموعة واتساب (WhatsApp Group)</option>
+                        <option value="whatsapp_channel">قناة واتساب (WhatsApp Channel)</option>
+                        <option value="telegram">قناة تليجرام (Telegram)</option>
+                        <option value="facebook">صفحة فيسبوك (Facebook)</option>
+                        <option value="phone">هاتف اتصال (Phone)</option>
+                        <option value="other">رابط آخر (Other)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-stone-400 font-bold">التمييز والتثبيت</label>
+                      <select
+                        value={newLinkFeatured ? 'yes' : 'no'}
+                        onChange={(e) => setNewLinkFeatured(e.target.value === 'yes')}
+                        className="w-full bg-[#110e11] border border-stone-800 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none"
+                      >
+                        <option value="yes">مميز بالواجهة ✨</option>
+                        <option value="no">عادي</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-stone-950 font-black py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 mt-2"
+                  >
+                    إضافة الرابط للشبكة
+                  </button>
+                </form>
+              </div>
+
+              {/* List of existing Community Links */}
+              <div className="bg-stone-900/50 p-5 rounded-2xl border border-stone-800 space-y-4 lg:col-span-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-amber-300">مجتمعات وقنوات التواصل النشطة ({whatsAppConfig?.communityLinks?.length || 0})</h3>
+                </div>
+
+                {!whatsAppConfig?.communityLinks || whatsAppConfig.communityLinks.length === 0 ? (
+                  <div className="text-center py-8 text-stone-500 text-xs">
+                    لا توجد مجتمعات مضافة حالياً. قم بملء النموذج لإضافة مجموعات الواتساب أو التليجرام الرسمية.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {whatsAppConfig.communityLinks.map(link => (
+                      <div key={link.id} className="bg-[#110e11] p-3.5 rounded-xl border border-stone-800 flex justify-between items-center gap-3">
+                        <div className="space-y-1 text-right">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-stone-100 text-xs">{link.title}</span>
+                            {link.isFeatured && (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                                مميز ✨
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded-full text-[9px] bg-stone-800 text-stone-400 font-mono">
+                              {link.platform}
+                            </span>
+                          </div>
+                          {link.description && (
+                            <p className="text-[11px] text-stone-400">{link.description}</p>
+                          )}
+                          <a 
+                            href={link.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-[10px] text-emerald-400 font-mono hover:underline flex items-center gap-1"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>{link.url}</span>
+                          </a>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteCommunityLink(link.id)}
+                          className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors cursor-pointer shrink-0"
+                          title="حذف الرابط"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* ========================================================================= */}
@@ -1595,6 +2008,17 @@ export default function Dashboard({
                   onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
                   placeholder="admin@example.com"
                   className="w-full bg-[#110e11] border border-stone-850 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] text-emerald-400 font-bold">رقم الواتساب الخاص بالمشرف (للتواصل في البطاقة)</label>
+                <input
+                  type="text"
+                  value={adminForm.whatsappPhone}
+                  onChange={(e) => setAdminForm({ ...adminForm, whatsappPhone: e.target.value })}
+                  placeholder="+249912345678"
+                  className="w-full bg-[#110e11] border border-stone-850 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none font-mono"
                 />
               </div>
 
@@ -1971,11 +2395,61 @@ export default function Dashboard({
                 </p>
               </div>
 
+              <div className="space-y-1">
+                <label className="block text-[10px] text-amber-300 font-bold">اسم مكتب التحويلات / جهة الصرف</label>
+                <input
+                  type="text"
+                  value={rateForm.officeName}
+                  onChange={(e) => setRateForm({ ...rateForm, officeName: e.target.value })}
+                  placeholder="مثال: مكتب دبي للتحويلات، المورد أبو عثمان..."
+                  className="w-full bg-[#110e11] border border-stone-850 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] text-emerald-400 font-bold">رقم واتساب التواصل المباشر لهذه العملة</label>
+                <input
+                  type="text"
+                  value={rateForm.contactPhone}
+                  onChange={(e) => setRateForm({ ...rateForm, contactPhone: e.target.value })}
+                  placeholder="+23566123456 أو +249..."
+                  className="w-full bg-[#110e11] border border-stone-850 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none font-mono"
+                />
+                <p className="text-[9px] text-stone-500">
+                  عند النقر على زر الواتساب في بطاقة العملة للتطبيق، سيتم فتح المحادثة مباشرة مع هذا الرقم.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] text-indigo-400 font-bold">ربط بالمشرف المسؤول عن العملة</label>
+                <select
+                  value={rateForm.assignedAdminId}
+                  onChange={(e) => {
+                    const selectedAdminId = e.target.value;
+                    const matchedAdmin = adminUsers.find(u => u.id === selectedAdminId);
+                    setRateForm({
+                      ...rateForm,
+                      assignedAdminId: selectedAdminId,
+                      // Auto populate phone if admin has a whatsapp phone and contactPhone is empty
+                      contactPhone: matchedAdmin?.whatsappPhone || rateForm.contactPhone
+                    });
+                  }}
+                  className="w-full bg-[#110e11] border border-stone-850 focus:border-amber-500 rounded-xl p-2.5 text-xs text-stone-200 focus:outline-none"
+                >
+                  <option value="">-- بدون ربط بمشرف محدد (استخدام الهاتف أعلاه) --</option>
+                  {adminUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.whatsappPhone ? `واتساب: ${u.whatsappPhone}` : 'بدون رقم واتساب'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <button
                 type="submit"
                 className="w-full bg-amber-500 hover:bg-amber-600 text-stone-950 font-black py-2 rounded-xl text-xs mt-4 transition-all"
               >
-                تحديث وحفظ السعر بالشبكة
+                تحديث وحفظ السعر والربط بالشبكة
               </button>
             </form>
           </div>
